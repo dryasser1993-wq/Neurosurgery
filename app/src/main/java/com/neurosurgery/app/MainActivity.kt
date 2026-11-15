@@ -21,7 +21,7 @@ class MainActivity : Activity() {
 
         val layout = LinearLayout(this)
         layout.orientation = LinearLayout.VERTICAL
-        layout.layoutDirection = LinearLayout.RTL
+        
         layout.setPadding(20, 25, 20, 20)
 
         val header = TextView(this)
@@ -32,7 +32,7 @@ class MainActivity : Activity() {
         header.setPadding(15, 35, 15, 35)
         header.setBackgroundColor(blue)
         layout.addView(header)
-
+layout.layoutDirection = android.view.View.LAYOUT_DIRECTION_RTL
         val subtitle = TextView(this)
         subtitle.text = "نظام إدارة المرضى والفحوصات والعمليات"
         subtitle.textSize = 16f
