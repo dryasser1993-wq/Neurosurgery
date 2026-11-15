@@ -61,7 +61,7 @@ class MainActivity : Activity() {
         searchInput = EditText(this)
         searchInput.hint = "ابحث بالاسم أو رقم الملف"
         searchInput.textSize = 16f
-        searchInput.singleLine = true
+        searchInput.setSingleLine(true)
         root.addView(searchInput)
 
         val addButton = Button(this)
