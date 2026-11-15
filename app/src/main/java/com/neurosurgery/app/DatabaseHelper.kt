@@ -6,92 +6,60 @@ import android.content.Context
 import android.database.sqlite.SQLiteDatabase
 import android.database.sqlite.SQLiteOpenHelper
 
-class DatabaseHelper(context: Context) : SQLiteOpenHelper(
-    context,
-    DATABASE_NAME,
-    null,
-    DATABASE_VERSION
-) {
+class DatabaseHelper(context: Context) :
+    SQLiteOpenHelper(context, DATABASE_NAME, null, DATABASE_VERSION) {
 
     companion object {
         private const val DATABASE_NAME = "neurosurgery.db"
-        private const val DATABASE_VERSION = 3
-
-        const val TABLE_PATIENTS = "patients"
-        const val TABLE_VISITS = "visits"
-        const val TABLE_EXAMS = "neurological_exams"
-        const val TABLE_SURGERIES = "surgeries"
-        const val TABLE_STAFF = "staff"
-    }
-
-    override fun onConfigure(db: SQLiteDatabase) {
-        super.onConfigure(db)
-        db.setForeignKeyConstraintsEnabled(true)
+        private const val DATABASE_VERSION = 4
     }
 
     override fun onCreate(db: SQLiteDatabase) {
-
         db.execSQL("""
-            CREATE TABLE patients (
-                id TEXT PRIMARY KEY NOT NULL,
+            CREATE TABLE IF NOT EXISTS patients (
+                id INTEGER PRIMARY KEY AUTOINCREMENT,
                 full_name TEXT NOT NULL,
+                file_number TEXT,
                 age TEXT,
                 gender TEXT,
                 phone TEXT,
                 address TEXT,
-                medical_history TEXT,
-                allergies TEXT,
-                created_at TEXT NOT NULL,
-                updated_at TEXT NOT NULL
-            )
-        """.trimIndent())
-
-        db.execSQL("""
-            CREATE TABLE visits (
-                id INTEGER PRIMARY KEY AUTOINCREMENT,
-                patient_id TEXT NOT NULL,
-                visit_date TEXT NOT NULL,
-                complaint TEXT,
                 diagnosis TEXT,
-                treatment_plan TEXT,
                 notes TEXT,
-                FOREIGN KEY(patient_id)
-                    REFERENCES patients(id)
-                    ON DELETE CASCADE
+                created_at TEXT DEFAULT CURRENT_TIMESTAMP
             )
-        """.trimIndent())
-
-        createExamsTable(db)
+        """)
 
         db.execSQL("""
-            CREATE TABLE surgeries (
+            CREATE TABLE IF NOT EXISTS visits (
                 id INTEGER PRIMARY KEY AUTOINCREMENT,
-                patient_id TEXT NOT NULL,
-                surgery_date TEXT NOT NULL,
-                procedure_name TEXT NOT NULL,
-                surgeon TEXT,
-                assistants TEXT,
-                anesthesia TEXT,
-                findings TEXT,
-                complications TEXT,
-                outcome TEXT,
-                notes TEXT,
-                FOREIGN KEY(patient_id)
-                    REFERENCES patients(id)
-                    ON DELETE CASCADE
+                patient_id INTEGER,
+                visit_date TEXT,
+                notes TEXT
             )
-        """.trimIndent())
+        """)
 
+        createNeurologicalExamsTable(db)
         createStaffTable(db)
-        createIndexes(db)
+
+        db.execSQL("""
+            CREATE TABLE IF NOT EXISTS surgeries (
+                id INTEGER PRIMARY KEY AUTOINCREMENT,
+                patient_id INTEGER,
+                surgery_date TEXT,
+                surgery_type TEXT,
+                surgeon TEXT,
+                notes TEXT
+            )
+        """)
     }
 
-    private fun createExamsTable(db: SQLiteDatabase) {
+    private fun createNeurologicalExamsTable(db: SQLiteDatabase) {
         db.execSQL("""
-            CREATE TABLE neurological_exams (
+            CREATE TABLE IF NOT EXISTS neurological_exams (
                 id INTEGER PRIMARY KEY AUTOINCREMENT,
-                patient_id TEXT NOT NULL,
-                exam_date TEXT NOT NULL,
+                patient_id INTEGER,
+                exam_date TEXT,
                 consciousness TEXT,
                 cranial_nerves TEXT,
                 right_upper_motor TEXT,
@@ -109,37 +77,22 @@ class DatabaseHelper(context: Context) : SQLiteOpenHelper(
                 gait TEXT,
                 clinical_impression TEXT,
                 examiner_name TEXT,
-                notes TEXT,
-                FOREIGN KEY(patient_id)
-                    REFERENCES patients(id)
-                    ON DELETE CASCADE
+                notes TEXT
             )
-        """.trimIndent())
+        """)
     }
 
     private fun createStaffTable(db: SQLiteDatabase) {
         db.execSQL("""
-            CREATE TABLE staff (
+            CREATE TABLE IF NOT EXISTS staff (
                 id INTEGER PRIMARY KEY AUTOINCREMENT,
                 full_name TEXT NOT NULL,
-                role TEXT NOT NULL,
+                role TEXT,
                 specialty TEXT,
                 phone TEXT,
                 notes TEXT
             )
-        """.trimIndent())
-    }
-
-    private fun createIndexes(db: SQLiteDatabase) {
-        db.execSQL(
-            "CREATE INDEX IF NOT EXISTS idx_visits_patient ON visits(patient_id)"
-        )
-        db.execSQL(
-            "CREATE INDEX IF NOT EXISTS idx_exams_patient ON neurological_exams(patient_id)"
-        )
-        db.execSQL(
-            "CREATE INDEX IF NOT EXISTS idx_surgeries_patient ON surgeries(patient_id)"
-        )
+        """)
     }
 
     override fun onUpgrade(
@@ -147,104 +100,111 @@ class DatabaseHelper(context: Context) : SQLiteOpenHelper(
         oldVersion: Int,
         newVersion: Int
     ) {
-
         if (oldVersion < 2) {
-            val columns = listOf(
-                "right_upper_motor",
-                "left_upper_motor",
-                "right_lower_motor",
-                "left_lower_motor",
-                "right_sensation",
-                "left_sensation",
-                "right_reflexes",
-                "left_reflexes",
-                "right_babinski",
-                "left_babinski",
-                "right_coordination",
-                "left_coordination",
-                "clinical_impression",
-                "examiner_name"
-            )
-
-            columns.forEach { column ->
-                db.execSQL(
-                    "ALTER TABLE neurological_exams ADD COLUMN $column TEXT"
-                )
-            }
+            addColumn(db, "neurological_exams", "exam_date", "TEXT")
+            addColumn(db, "neurological_exams", "right_upper_motor", "TEXT")
+            addColumn(db, "neurological_exams", "left_upper_motor", "TEXT")
+            addColumn(db, "neurological_exams", "right_lower_motor", "TEXT")
+            addColumn(db, "neurological_exams", "left_lower_motor", "TEXT")
+            addColumn(db, "neurological_exams", "right_sensation", "TEXT")
+            addColumn(db, "neurological_exams", "left_sensation", "TEXT")
+            addColumn(db, "neurological_exams", "right_reflexes", "TEXT")
+            addColumn(db, "neurological_exams", "left_reflexes", "TEXT")
+            addColumn(db, "neurological_exams", "right_babinski", "TEXT")
+            addColumn(db, "neurological_exams", "left_babinski", "TEXT")
+            addColumn(db, "neurological_exams", "right_coordination", "TEXT")
+            addColumn(db, "neurological_exams", "left_coordination", "TEXT")
+            addColumn(db, "neurological_exams", "clinical_impression", "TEXT")
+            addColumn(db, "neurological_exams", "examiner_name", "TEXT")
         }
 
         if (oldVersion < 3) {
             createStaffTable(db)
         }
 
-        createIndexes(db)
+        if (oldVersion < 4) {
+            createStaffTable(db)
+            createNeurologicalExamsTable(db)
+        }
+    }
+
+    private fun addColumn(
+        db: SQLiteDatabase,
+        table: String,
+        column: String,
+        type: String
+    ) {
+        try {
+            db.execSQL("ALTER TABLE $table ADD COLUMN $column $type")
+        } catch (_: Exception) {
+            // العمود موجود مسبقاً؛ لا نحذف البيانات.
+        }
     }
 
     fun insertPatient(
-        id: String,
         name: String,
+        fileNumber: String,
         age: String,
-        gender: String
-    ): Boolean {
-        val now = System.currentTimeMillis().toString()
-
+        gender: String,
+        phone: String,
+        address: String,
+        diagnosis: String,
+        notes: String
+    ): Long {
         val values = ContentValues().apply {
-            put("id", id)
             put("full_name", name)
+            put("file_number", fileNumber)
             put("age", age)
             put("gender", gender)
-            put("created_at", now)
-            put("updated_at", now)
+            put("phone", phone)
+            put("address", address)
+            put("diagnosis", diagnosis)
+            put("notes", notes)
         }
 
-        return writableDatabase.insert(
-            TABLE_PATIENTS,
-            null,
-            values
-        ) != -1L
+        return writableDatabase.insert("patients", null, values)
     }
 
     fun getPatientCount(): Int {
-        readableDatabase.rawQuery(
-            "SELECT COUNT(*) FROM patients",
-            null
-        ).use { cursor ->
-            return if (cursor.moveToFirst()) cursor.getInt(0) else 0
+        val cursor = readableDatabase.rawQuery(
+            "SELECT COUNT(*) FROM patients", null
+        )
+        cursor.use {
+            return if (it.moveToFirst()) it.getInt(0) else 0
         }
     }
 
-    fun addDoctor(name: String): Boolean {
-        if (name.trim().isEmpty()) return false
-
+    fun addDoctor(name: String): Long {
         val values = ContentValues().apply {
-            put("full_name", name.trim())
+            put("full_name", name)
             put("role", "Doctor")
             put("specialty", "Neurosurgery")
         }
 
-        return writableDatabase.insert(
-            TABLE_STAFF,
-            null,
-            values
-        ) != -1L
+        return writableDatabase.insert("staff", null, values)
     }
 
     fun getDoctors(): List<String> {
         val doctors = mutableListOf<String>()
+        val cursor = readableDatabase.rawQuery(
+            "SELECT full_name FROM staff WHERE role = ? ORDER BY full_name",
+            arrayOf("Doctor")
+        )
 
-        readableDatabase.rawQuery(
-            """
-            SELECT full_name FROM staff
-            WHERE role = 'Doctor'
-            ORDER BY full_name
-            """.trimIndent(),
-            null
-        ).use { cursor ->
-            while (cursor.moveToNext()) {
-                doctors.add(cursor.getString(0))
+        cursor.use {
+            while (it.moveToNext()) {
+                doctors.add(it.getString(0))
             }
         }
 
         return doctors
+    }
+
+    fun saveNeurologicalExam(values: ContentValues): Long {
+        return writableDatabase.insert(
+            "neurological_exams",
+            null,
+            values
+        )
     }
 }
