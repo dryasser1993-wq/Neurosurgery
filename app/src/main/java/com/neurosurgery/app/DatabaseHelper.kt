@@ -15,7 +15,7 @@ class DatabaseHelper(context: Context) : SQLiteOpenHelper(
 
     companion object {
         private const val DATABASE_NAME = "neurosurgery.db"
-        private const val DATABASE_VERSION = 1
+        private const val DATABASE_VERSION = 2
 
         const val TABLE_PATIENTS = "patients"
         const val TABLE_VISITS = "visits"
@@ -61,24 +61,7 @@ class DatabaseHelper(context: Context) : SQLiteOpenHelper(
             )
         """.trimIndent())
 
-        db.execSQL("""
-            CREATE TABLE neurological_exams (
-                id INTEGER PRIMARY KEY AUTOINCREMENT,
-                patient_id TEXT NOT NULL,
-                exam_date TEXT NOT NULL,
-                consciousness TEXT,
-                cranial_nerves TEXT,
-                motor_power TEXT,
-                sensation TEXT,
-                reflexes TEXT,
-                coordination TEXT,
-                gait TEXT,
-                notes TEXT,
-                FOREIGN KEY(patient_id)
-                    REFERENCES patients(id)
-                    ON DELETE CASCADE
-            )
-        """.trimIndent())
+        createExamsTable(db)
 
         db.execSQL("""
             CREATE TABLE surgeries (
@@ -110,16 +93,57 @@ class DatabaseHelper(context: Context) : SQLiteOpenHelper(
             )
         """.trimIndent())
 
-        db.execSQL(
-            "CREATE INDEX idx_visits_patient ON visits(patient_id)"
-        )
+        createIndexes(db)
+    }
 
-        db.execSQL(
-            "CREATE INDEX idx_exams_patient ON neurological_exams(patient_id)"
-        )
+    private fun createExamsTable(db: SQLiteDatabase) {
+        db.execSQL("""
+            CREATE TABLE neurological_exams (
+                id INTEGER PRIMARY KEY AUTOINCREMENT,
+                patient_id TEXT NOT NULL,
+                exam_date TEXT NOT NULL,
 
+                consciousness TEXT,
+                cranial_nerves TEXT,
+
+                right_upper_motor TEXT,
+                left_upper_motor TEXT,
+                right_lower_motor TEXT,
+                left_lower_motor TEXT,
+
+                right_sensation TEXT,
+                left_sensation TEXT,
+
+                right_reflexes TEXT,
+                left_reflexes TEXT,
+
+                right_babinski TEXT,
+                left_babinski TEXT,
+
+                right_coordination TEXT,
+                left_coordination TEXT,
+
+                gait TEXT,
+                clinical_impression TEXT,
+                examiner_name TEXT,
+                notes TEXT,
+
+                FOREIGN KEY(patient_id)
+                    REFERENCES patients(id)
+                    ON DELETE CASCADE
+            )
+        """.trimIndent())
+    }
+
+    private fun createIndexes(db: SQLiteDatabase) {
         db.execSQL(
-            "CREATE INDEX idx_surgeries_patient ON surgeries(patient_id)"
+            "CREATE INDEX IF NOT EXISTS idx_visits_patient ON visits(patient_id)"
+        )
+        db.execSQL(
+            "CREATE INDEX IF NOT EXISTS idx_exams_patient ON neurological_exams(patient_id)"
+        )
+        db.execSQL(
+            "CREATE INDEX IF NOT EXISTS idx_surgeries_patient ON surgeries(patient_id)"
         )
     }
 
@@ -128,7 +152,79 @@ class DatabaseHelper(context: Context) : SQLiteOpenHelper(
         oldVersion: Int,
         newVersion: Int
     ) {
-        // Database migrations will be added here.
+        if (oldVersion < 2) {
+            db.execSQL("""
+                ALTER TABLE neurological_exams
+                ADD COLUMN right_upper_motor TEXT
+            """.trimIndent())
+
+            db.execSQL("""
+                ALTER TABLE neurological_exams
+                ADD COLUMN left_upper_motor TEXT
+            """.trimIndent())
+
+            db.execSQL("""
+                ALTER TABLE neurological_exams
+                ADD COLUMN right_lower_motor TEXT
+            """.trimIndent())
+
+            db.execSQL("""
+                ALTER TABLE neurological_exams
+                ADD COLUMN left_lower_motor TEXT
+            """.trimIndent())
+
+            db.execSQL("""
+                ALTER TABLE neurological_exams
+                ADD COLUMN right_sensation TEXT
+            """.trimIndent())
+
+            db.execSQL("""
+                ALTER TABLE neurological_exams
+                ADD COLUMN left_sensation TEXT
+            """.trimIndent())
+
+            db.execSQL("""
+                ALTER TABLE neurological_exams
+                ADD COLUMN right_reflexes TEXT
+            """.trimIndent())
+
+            db.execSQL("""
+                ALTER TABLE neurological_exams
+                ADD COLUMN left_reflexes TEXT
+            """.trimIndent())
+
+            db.execSQL("""
+                ALTER TABLE neurological_exams
+                ADD COLUMN right_babinski TEXT
+            """.trimIndent())
+
+            db.execSQL("""
+                ALTER TABLE neurological_exams
+                ADD COLUMN left_babinski TEXT
+            """.trimIndent())
+
+            db.execSQL("""
+                ALTER TABLE neurological_exams
+                ADD COLUMN right_coordination TEXT
+            """.trimIndent())
+
+            db.execSQL("""
+                ALTER TABLE neurological_exams
+                ADD COLUMN left_coordination TEXT
+            """.trimIndent())
+
+            db.execSQL("""
+                ALTER TABLE neurological_exams
+                ADD COLUMN clinical_impression TEXT
+            """.trimIndent())
+
+            db.execSQL("""
+                ALTER TABLE neurological_exams
+                ADD COLUMN examiner_name TEXT
+            """.trimIndent())
+        }
+
+        createIndexes(db)
     }
 
     fun insertPatient(
