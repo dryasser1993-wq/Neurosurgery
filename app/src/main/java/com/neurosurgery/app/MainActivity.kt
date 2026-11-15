@@ -10,57 +10,163 @@ import android.text.TextWatcher
 import android.view.Gravity
 import android.view.View
 import android.widget.*
-import org.json.JSONArray
-import org.json.JSONObject
 
 class MainActivity : Activity() {
 
     private val blue = Color.rgb(18, 75, 135)
-    private val patients = mutableListOf<Patient>()
-
-    private lateinit var listLayout: LinearLayout
-    private lateinit var searchInput: EditText
-
-    data class Patient(
-        val id: String,
-        val name: String,
-        val age: String,
-        val gender: String
-    )
+    private val pale = Color.rgb(245, 248, 252)
+    private lateinit var database: DatabaseHelper
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
-
-        loadPatients()
-        buildScreen()
+        database = DatabaseHelper(this)
+        showHome()
     }
 
-    private fun buildScreen() {
+    private fun showHome() {
         val root = LinearLayout(this)
         root.orientation = LinearLayout.VERTICAL
         root.layoutDirection = View.LAYOUT_DIRECTION_RTL
         root.setPadding(18, 20, 18, 15)
-        root.setBackgroundColor(Color.rgb(245, 248, 252))
+        root.setBackgroundColor(pale)
+
+        val scroll = ScrollView(this)
+        val content = LinearLayout(this)
+        content.orientation = LinearLayout.VERTICAL
 
         val header = TextView(this)
-        header.text = "🧠 الجراحة العصبية\nNeurosurgery"
-        header.textSize = 25f
+        header.text = "🧠\nالجراحة العصبية\nNeurosurgery"
+        header.textSize = 27f
         header.setTextColor(Color.WHITE)
         header.gravity = Gravity.CENTER
-        header.setPadding(10, 25, 10, 25)
+        header.setPadding(15, 30, 15, 30)
+        header.setBackgroundColor(blue)
+        content.addView(header)
+
+        val subtitle = TextView(this)
+        subtitle.text = "نظام إدارة قسم جراحة الأعصاب"
+        subtitle.textSize = 17f
+        subtitle.setTextColor(blue)
+        subtitle.gravity = Gravity.CENTER
+        subtitle.setPadding(10, 22, 10, 20)
+        content.addView(subtitle)
+
+        addSection(content, "إدارة المرضى")
+        addMenuButton(content, "👤 إدارة المرضى") {
+            showPatients()
+        }
+
+        addSection(content, "الفحص والمتابعة")
+        addMenuButton(content, "🩺 الفحص العصبي") {
+            showInfo("الفحص العصبي", "سيتم إضافة نموذج الفحص العصبي وربطه بملف المريض.")
+        }
+        addMenuButton(content, "📋 الزيارات والمتابعة") {
+            showInfo("الزيارات والمتابعة", "سيتم إضافة سجل الزيارات والخطط العلاجية.")
+        }
+
+        addSection(content, "الجراحة والعمليات")
+        addMenuButton(content, "🏥 العمليات الجراحية") {
+            showInfo("العمليات الجراحية", "سيتم إضافة سجل العمليات وربطه بملف المريض.")
+        }
+        addMenuButton(content, "👨‍⚕️ الأخصائيون والمقيمون") {
+            showInfo("الفريق الطبي", "سيتم إضافة إدارة الأخصائيين والمقيمين.")
+        }
+
+        addSection(content, "التقارير وإدارة النظام")
+        addMenuButton(content, "📊 الإحصائيات") {
+            showInfo(
+                "الإحصائيات",
+                "عدد المرضى المسجلين: ${database.getPatientCount()}"
+            )
+        }
+        addMenuButton(content, "📄 التقارير") {
+            showInfo("التقارير", "سيتم تطوير التقارير لاحقاً.")
+        }
+        addMenuButton(content, "⚙️ الإعدادات والنسخ الاحتياطي") {
+            showInfo("الإعدادات", "سيتم تطوير الحماية والنسخ الاحتياطي.")
+        }
+
+        val footer = TextView(this)
+        footer.text = "Neurosurgery • Beta 1.0"
+        footer.gravity = Gravity.CENTER
+        footer.setTextColor(blue)
+        footer.setPadding(10, 30, 10, 20)
+        content.addView(footer)
+
+        scroll.addView(content)
+        root.addView(
+            scroll,
+            LinearLayout.LayoutParams(
+                LinearLayout.LayoutParams.MATCH_PARENT,
+                0,
+                1f
+            )
+        )
+
+        setContentView(root)
+    }
+
+    private fun addSection(parent: LinearLayout, title: String) {
+        val text = TextView(this)
+        text.text = title
+        text.textSize = 20f
+        text.setTextColor(blue)
+        text.setPadding(5, 22, 5, 10)
+        parent.addView(text)
+    }
+
+    private fun addMenuButton(
+        parent: LinearLayout,
+        title: String,
+        action: () -> Unit
+    ) {
+        val button = Button(this)
+        button.text = title
+        button.textSize = 17f
+        button.setTextColor(blue)
+        button.setBackgroundColor(Color.WHITE)
+
+        val params = LinearLayout.LayoutParams(
+            LinearLayout.LayoutParams.MATCH_PARENT,
+            LinearLayout.LayoutParams.WRAP_CONTENT
+        )
+        params.setMargins(0, 5, 0, 8)
+        parent.addView(button, params)
+
+        button.setOnClickListener { action() }
+    }
+
+    private fun showInfo(title: String, message: String) {
+        AlertDialog.Builder(this)
+            .setTitle(title)
+            .setMessage(message)
+            .setPositiveButton("موافق", null)
+            .show()
+    }
+
+    private fun showPatients() {
+        val root = LinearLayout(this)
+        root.orientation = LinearLayout.VERTICAL
+        root.layoutDirection = View.LAYOUT_DIRECTION_RTL
+        root.setPadding(18, 18, 18, 12)
+        root.setBackgroundColor(pale)
+
+        val header = TextView(this)
+        header.text = "👤 إدارة المرضى"
+        header.textSize = 24f
+        header.setTextColor(Color.WHITE)
+        header.gravity = Gravity.CENTER
+        header.setPadding(12, 22, 12, 22)
         header.setBackgroundColor(blue)
         root.addView(header)
 
-        val title = TextView(this)
-        title.text = "إدارة المرضى"
-        title.textSize = 23f
-        title.setTextColor(blue)
-        title.setPadding(5, 20, 5, 15)
-        root.addView(title)
+        val backButton = Button(this)
+        backButton.text = "العودة إلى الرئيسية"
+        backButton.setOnClickListener { showHome() }
+        root.addView(backButton)
 
-        searchInput = EditText(this)
+        val searchInput = EditText(this)
         searchInput.hint = "ابحث بالاسم أو رقم الملف"
-        searchInput.textSize = 16f
         searchInput.setSingleLine(true)
         root.addView(searchInput)
 
@@ -71,7 +177,7 @@ class MainActivity : Activity() {
         root.addView(addButton)
 
         val scroll = ScrollView(this)
-        listLayout = LinearLayout(this)
+        val listLayout = LinearLayout(this)
         listLayout.orientation = LinearLayout.VERTICAL
         listLayout.setPadding(0, 15, 0, 15)
         scroll.addView(listLayout)
@@ -85,8 +191,73 @@ class MainActivity : Activity() {
             )
         )
 
+        fun renderPatients(query: String = "") {
+            listLayout.removeAllViews()
+
+            val sql = """
+                SELECT id, full_name, age, gender
+                FROM patients
+                WHERE full_name LIKE ? OR id LIKE ?
+                ORDER BY created_at DESC
+            """.trimIndent()
+
+            val cursor = database.readableDatabase.rawQuery(
+                sql,
+                arrayOf("%$query%", "%$query%")
+            )
+
+            var found = false
+
+            cursor.use {
+                while (it.moveToNext()) {
+                    found = true
+
+                    val id = it.getString(0)
+                    val name = it.getString(1)
+                    val age = it.getString(2) ?: ""
+                    val gender = it.getString(3) ?: ""
+
+                    val card = TextView(this)
+                    card.text = """
+                        👤 $name
+                        رقم الملف: $id
+                        العمر: $age
+                        الجنس: $gender
+                    """.trimIndent()
+
+                    card.textSize = 16f
+                    card.setTextColor(blue)
+                    card.setPadding(20, 20, 20, 20)
+                    card.setBackgroundColor(Color.WHITE)
+
+                    val params = LinearLayout.LayoutParams(
+                        LinearLayout.LayoutParams.MATCH_PARENT,
+                        LinearLayout.LayoutParams.WRAP_CONTENT
+                    )
+                    params.setMargins(0, 5, 0, 12)
+                    listLayout.addView(card, params)
+                }
+            }
+
+            if (!found) {
+                val empty = TextView(this)
+                empty.text = if (query.isEmpty()) {
+                    "لا يوجد مرضى مسجلون حتى الآن"
+                } else {
+                    "لا توجد نتائج مطابقة"
+                }
+                empty.textSize = 17f
+                empty.setTextColor(blue)
+                empty.gravity = Gravity.CENTER
+                empty.setPadding(10, 35, 10, 35)
+                listLayout.addView(empty)
+            }
+        }
+
         addButton.setOnClickListener {
-            showAddPatientDialog()
+            showAddPatientDialog {
+                renderPatients(searchInput.text.toString())
+            }
         }
 
         searchInput.addTextChangedListener(object : TextWatcher {
@@ -107,7 +278,7 @@ class MainActivity : Activity() {
         renderPatients()
     }
 
-    private fun showAddPatientDialog() {
+    private fun showAddPatientDialog(onSaved: () -> Unit) {
         val form = LinearLayout(this)
         form.orientation = LinearLayout.VERTICAL
         form.setPadding(25, 15, 25, 5)
@@ -152,119 +323,33 @@ class MainActivity : Activity() {
                         return@setOnClickListener
                     }
 
-                    val patient = Patient(
-                        id = "NS-${System.currentTimeMillis()}",
+                    val id = "NS-${System.currentTimeMillis()}"
+
+                    val saved = database.insertPatient(
+                        id = id,
                         name = name,
                         age = age,
                         gender = genderSpinner.selectedItem.toString()
                     )
 
-                    patients.add(patient)
-                    savePatients()
-                    renderPatients()
-                    dialog.dismiss()
-
-                    Toast.makeText(
-                        this,
-                        "تم حفظ ملف المريض",
-                        Toast.LENGTH_SHORT
-                    ).show()
+                    if (saved) {
+                        onSaved()
+                        dialog.dismiss()
+                        Toast.makeText(
+                            this,
+                            "تم حفظ ملف المريض",
+                            Toast.LENGTH_SHORT
+                        ).show()
+                    } else {
+                        Toast.makeText(
+                            this,
+                            "تعذر حفظ ملف المريض",
+                            Toast.LENGTH_LONG
+                        ).show()
+                    }
                 }
         }
 
         dialog.show()
-    }
-
-    private fun renderPatients(query: String = "") {
-        listLayout.removeAllViews()
-
-        val filtered = patients.filter {
-            it.name.contains(query, ignoreCase = true) ||
-            it.id.contains(query, ignoreCase = true)
-        }
-
-        if (filtered.isEmpty()) {
-            val empty = TextView(this)
-            empty.text = if (query.isEmpty()) {
-                "لا يوجد مرضى مسجلون حتى الآن"
-            } else {
-                "لا توجد نتائج مطابقة"
-            }
-            empty.textSize = 17f
-            empty.setTextColor(blue)
-            empty.gravity = Gravity.CENTER
-            empty.setPadding(10, 35, 10, 35)
-            listLayout.addView(empty)
-            return
-        }
-
-        filtered.forEach { patient ->
-            val card = TextView(this)
-            card.text = """
-                👤 ${patient.name}
-                رقم الملف: ${patient.id}
-                العمر: ${patient.age}
-                الجنس: ${patient.gender}
-            """.trimIndent()
-
-            card.textSize = 16f
-            card.setTextColor(blue)
-            card.setPadding(20, 20, 20, 20)
-            card.setBackgroundColor(Color.WHITE)
-
-            val params = LinearLayout.LayoutParams(
-                LinearLayout.LayoutParams.MATCH_PARENT,
-                LinearLayout.LayoutParams.WRAP_CONTENT
-            )
-            params.setMargins(0, 5, 0, 12)
-
-            listLayout.addView(card, params)
-        }
-    }
-
-    private fun savePatients() {
-        val array = JSONArray()
-
-        patients.forEach { patient ->
-            val obj = JSONObject()
-            obj.put("id", patient.id)
-            obj.put("name", patient.name)
-            obj.put("age", patient.age)
-            obj.put("gender", patient.gender)
-            array.put(obj)
-        }
-
-        getSharedPreferences(
-            "neurosurgery_patients",
-            MODE_PRIVATE
-        ).edit()
-            .putString("patients", array.toString())
-            .apply()
-    }
-
-    private fun loadPatients() {
-        val saved = getSharedPreferences(
-            "neurosurgery_patients",
-            MODE_PRIVATE
-        ).getString("patients", "[]")
-
-        try {
-            val array = JSONArray(saved)
-
-            for (i in 0 until array.length()) {
-                val obj = array.getJSONObject(i)
-
-                patients.add(
-                    Patient(
-                        id = obj.getString("id"),
-                        name = obj.getString("name"),
-                        age = obj.getString("age"),
-                        gender = obj.getString("gender")
-                    )
-                )
-            }
-        } catch (e: Exception) {
-            patients.clear()
-        }
     }
 }
