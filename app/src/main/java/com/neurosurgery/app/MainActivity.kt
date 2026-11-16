@@ -1,4 +1,4 @@
- 
+
 package com.neurosurgery.app
 
 import android.app.Activity
@@ -6,6 +6,7 @@ import android.app.AlertDialog
 import android.os.Bundle
 import android.content.ContentValues
 import android.content.Intent
+import android.database.sqlite.SQLiteDatabase
 import android.graphics.BitmapFactory
 import android.graphics.Color
 import android.graphics.Typeface
@@ -55,7 +56,101 @@ class MainActivity : Activity() {
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
         db = DatabaseHelper(this)
+        ensurePatientDoctorTable()
         home()
+    }
+
+    // ---------------- TREATING DOCTOR DATABASE ----------------
+
+    private fun ensurePatientDoctorTable() {
+        db.writableDatabase.execSQL(
+            """
+            CREATE TABLE IF NOT EXISTS patient_treating_doctors (
+                patient_id INTEGER PRIMARY KEY,
+                doctor_name TEXT
+            )
+            """.trimIndent()
+        )
+    }
+
+    private fun saveTreatingDoctor(patientId: Int, doctorName: String) {
+        val values = ContentValues().apply {
+            put("patient_id", patientId)
+            put("doctor_name", doctorName)
+        }
+
+        db.writableDatabase.insertWithOnConflict(
+            "patient_treating_doctors",
+            null,
+            values,
+            SQLiteDatabase.CONFLICT_REPLACE
+        )
+    }
+
+    private fun getTreatingDoctor(patientId: Int): String {
+        val cursor = db.readableDatabase.rawQuery(
+            """
+            SELECT doctor_name
+            FROM patient_treating_doctors
+            WHERE patient_id = ?
+            """.trimIndent(),
+            arrayOf(patientId.toString())
+        )
+
+        val result = if (cursor.moveToFirst()) {
+            cursor.getString(0) ?: "غير محدد"
+        } else {
+            "غير محدد"
+        }
+
+        cursor.close()
+        return result
+    }
+
+    private fun changeTreatingDoctor(patientId: Int) {
+        val doctorsList = db.getDoctors().distinct().toMutableList()
+
+        if (doctorsList.isEmpty()) {
+            AlertDialog.Builder(this)
+                .setMessage("لا يوجد أطباء مسجلون. يرجى إضافة طبيب أولاً.")
+                .setPositiveButton("إضافة طبيب") { _, _ ->
+                    addDoctorDialog {
+                        changeTreatingDoctor(patientId)
+                    }
+                }
+                .setNegativeButton("إلغاء", null)
+                .show()
+            return
+        }
+
+        val options = listOf("غير محدد") + doctorsList
+        val currentDoctor = getTreatingDoctor(patientId)
+        val selectedIndex = options.indexOf(currentDoctor).coerceAtLeast(0)
+
+        val doctorSpinner = Spinner(this)
+        doctorSpinner.adapter = ArrayAdapter(
+            this,
+            android.R.layout.simple_spinner_item,
+            options
+        ).also {
+            it.setDropDownViewResource(
+                android.R.layout.simple_spinner_dropdown_item
+            )
+        }
+        doctorSpinner.setSelection(selectedIndex)
+
+        AlertDialog.Builder(this)
+            .setTitle("تغيير الطبيب المعالج")
+            .setView(doctorSpinner)
+            .setPositiveButton("حفظ") { _, _ ->
+                saveTreatingDoctor(
+                    patientId,
+                    doctorSpinner.selectedItem.toString()
+                )
+                patientDetails(patientId)
+            }
+            .setNegativeButton("إلغاء", null)
+            .show()
     }
 
     // ---------------- GENERAL UI ----------------
@@ -308,6 +403,15 @@ class MainActivity : Activity() {
         val search = input("الاسم أو رقم الملف")
         search.setSingleLine(true)
 
+        heading("تصفية حسب الطبيب المعالج")
+
+        val doctorOptions = (
+            listOf("جميع الأطباء", "غير محدد") +
+                db.getDoctors().distinct()
+            ).distinct()
+
+        val doctorFilter = spinner(doctorOptions)
+
         val results = LinearLayout(this).apply {
             orientation = LinearLayout.VERTICAL
         }
@@ -316,14 +420,31 @@ class MainActivity : Activity() {
         fun loadPatients(query: String) {
             results.removeAllViews()
 
+            val selectedDoctor = doctorFilter.selectedItem.toString()
+
             val cursor = db.readableDatabase.rawQuery(
                 """
-                SELECT id, full_name, file_number, diagnosis
-                FROM patients
-                WHERE full_name LIKE ? OR file_number LIKE ?
-                ORDER BY id DESC
+                SELECT p.id, p.full_name, p.file_number, p.diagnosis,
+                       t.doctor_name
+                FROM patients p
+                LEFT JOIN patient_treating_doctors t
+                    ON p.id = t.patient_id
+                WHERE (p.full_name LIKE ? OR p.file_number LIKE ?)
+                AND (
+                    ? = 'جميع الأطباء'
+                    OR (? = 'غير محدد' AND
+                        (t.doctor_name IS NULL OR t.doctor_name = 'غير محدد'))
+                    OR t.doctor_name = ?
+                )
+                ORDER BY p.id DESC
                 """.trimIndent(),
-                arrayOf("%$query%", "%$query%")
+                arrayOf(
+                    "%$query%",
+                    "%$query%",
+                    selectedDoctor,
+                    selectedDoctor,
+                    selectedDoctor
+                )
             )
 
             if (cursor.count == 0) {
@@ -339,9 +460,10 @@ class MainActivity : Activity() {
                 val name = cursor.getString(1) ?: ""
                 val file = cursor.getString(2) ?: ""
                 val diagnosis = cursor.getString(3) ?: ""
+                val doctor = cursor.getString(4) ?: "غير محدد"
 
                 results.addView(Button(this).apply {
-                    text = "$name\nرقم الملف: $file\nالتشخيص: $diagnosis"
+                    text = "$name\nرقم الملف: $file\nالتشخيص: $diagnosis\nالطبيب المعالج: $doctor"
                     textSize = 14f
                     setTextColor(blue)
                     setBackgroundColor(Color.WHITE)
@@ -352,7 +474,7 @@ class MainActivity : Activity() {
             cursor.close()
         }
 
-        button("بحث") {
+        button("بحث وتطبيق التصفية") {
             loadPatients(search.text.toString().trim())
         }
 
@@ -375,6 +497,18 @@ class MainActivity : Activity() {
         val diagnosis = input("التشخيص")
         val notes = input("ملاحظات")
 
+        heading("الطبيب المعالج")
+
+        val doctorList = db.getDoctors().distinct()
+        val doctorOptions = listOf("غير محدد") + doctorList
+        val treatingDoctor = spinner(doctorOptions)
+
+        button("إضافة طبيب جديد") {
+            addDoctorDialog {
+                addPatient()
+            }
+        }
+
         button("حفظ بيانات المريض") {
             if (name.text.toString().trim().isEmpty()) {
                 name.error = "يرجى إدخال اسم المريض"
@@ -393,10 +527,21 @@ class MainActivity : Activity() {
             )
 
             if (result != -1L) {
-                AlertDialog.Builder(this)
-                    .setMessage("تم حفظ بيانات المريض بنجاح.")
-                    .setPositiveButton("موافق") { _, _ -> patients() }
-                    .show()
+                try {
+                    saveTreatingDoctor(
+                        result.toInt(),
+                        treatingDoctor.selectedItem.toString()
+                    )
+
+                    AlertDialog.Builder(this)
+                        .setMessage("تم حفظ بيانات المريض والطبيب المعالج بنجاح.")
+                        .setPositiveButton("موافق") { _, _ -> patients() }
+                        .show()
+                } catch (e: Exception) {
+                    showMessage(
+                        "تم حفظ المريض، لكن تعذر حفظ الطبيب المعالج: ${e.message}"
+                    )
+                }
             } else {
                 showMessage("تعذر حفظ بيانات المريض.")
             }
@@ -431,6 +576,13 @@ class MainActivity : Activity() {
             }
         }
         cursor.close()
+
+        heading("الطبيب المعالج")
+        text(getTreatingDoctor(patientId))
+
+        button("تغيير الطبيب المعالج") {
+            changeTreatingDoctor(patientId)
+        }
 
         button("إجراء فحص عصبي جديد") {
             neurologicalExam(patientId)
