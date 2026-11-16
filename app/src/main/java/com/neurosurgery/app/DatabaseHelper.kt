@@ -9,7 +9,7 @@ class DatabaseHelper(context: Context) :
 
     companion object {
         private const val DATABASE_NAME = "neurosurgery.db"
-        private const val DATABASE_VERSION = 6
+        private const val DATABASE_VERSION = 7
     }
 
     override fun onCreate(db: SQLiteDatabase) {
@@ -24,7 +24,8 @@ class DatabaseHelper(context: Context) :
                 address TEXT,
                 diagnosis TEXT,
                 notes TEXT,
-                created_at TEXT DEFAULT CURRENT_TIMESTAMP
+                created_at TEXT DEFAULT CURRENT_TIMESTAMP,
+                specialist TEXT
             )
         """)
 
@@ -181,6 +182,10 @@ class DatabaseHelper(context: Context) :
             addColumn(db, "surgeries", "report", "TEXT")
             addColumn(db, "surgeries", "notes", "TEXT")
         }
+
+        if (oldVersion < 7) {
+            addColumn(db, "patients", "specialist", "TEXT")
+        }
     }
 
     private fun addColumn(
@@ -204,7 +209,8 @@ class DatabaseHelper(context: Context) :
         phone: String,
         address: String,
         diagnosis: String,
-        notes: String
+        notes: String,
+        specialist: String = ""
     ): Long {
         val values = ContentValues().apply {
             put("full_name", name)
@@ -215,6 +221,7 @@ class DatabaseHelper(context: Context) :
             put("address", address)
             put("diagnosis", diagnosis)
             put("notes", notes)
+            put("specialist", specialist)
         }
 
         return writableDatabase.insert("patients", null, values)
