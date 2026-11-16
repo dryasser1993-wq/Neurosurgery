@@ -1,19 +1,26 @@
-
+ 
 package com.neurosurgery.app
 
 import android.app.Activity
 import android.app.AlertDialog
 import android.os.Bundle
 import android.content.ContentValues
+import android.content.Intent
+import android.graphics.BitmapFactory
 import android.graphics.Color
 import android.graphics.Typeface
 import android.view.Gravity
 import android.view.View
 import android.widget.*
 import android.text.InputType
+import android.net.Uri
+import android.provider.OpenableColumns
 import java.text.SimpleDateFormat
 import java.util.Date
 import java.util.Locale
+import java.io.File
+import java.io.FileOutputStream
+import java.util.UUID
 
 class MainActivity : Activity() {
 
@@ -24,6 +31,13 @@ class MainActivity : Activity() {
     private val lightBlue = Color.rgb(232, 241, 250)
     private val backgroundColor = Color.rgb(245, 248, 252)
     private val dark = Color.rgb(35, 45, 55)
+
+    private val IMAGE_PICK_REQUEST = 7101
+
+    private var pendingImagePatientId = -1
+    private var pendingImageType = ""
+    private var pendingImageDate = ""
+    private var pendingImageDescription = ""
 
     private data class MotorField(
         val group: String,
@@ -221,25 +235,18 @@ class MainActivity : Activity() {
             }
         }
 
-        fun addCardRow(
-            first: LinearLayout,
-            second: LinearLayout
-        ) {
+        fun addCardRow(first: LinearLayout, second: LinearLayout) {
             val row = LinearLayout(this).apply {
                 orientation = LinearLayout.HORIZONTAL
                 gravity = Gravity.CENTER
             }
 
             row.addView(first, LinearLayout.LayoutParams(
-                0,
-                LinearLayout.LayoutParams.WRAP_CONTENT,
-                1f
+                0, LinearLayout.LayoutParams.WRAP_CONTENT, 1f
             ).apply { setMargins(5, 6, 5, 6) })
 
             row.addView(second, LinearLayout.LayoutParams(
-                0,
-                LinearLayout.LayoutParams.WRAP_CONTENT,
-                1f
+                0, LinearLayout.LayoutParams.WRAP_CONTENT, 1f
             ).apply { setMargins(5, 6, 5, 6) })
 
             root.addView(row)
@@ -259,7 +266,7 @@ class MainActivity : Activity() {
                 placeholder("الزيارات والمتابعة")
             },
             makeCard("🩻", "الاستقصاءات والصور", "الفحوصات والتصوير") {
-                placeholder("الاستقصاءات والصور")
+                choosePatientForRecords()
             }
         )
 
@@ -398,6 +405,8 @@ class MainActivity : Activity() {
         backButton()
     }
 
+    // ---------------- PATIENT DETAILS ----------------
+
     private fun patientDetails(patientId: Int) {
         screen("ملف المريض")
 
@@ -427,11 +436,55 @@ class MainActivity : Activity() {
             neurologicalExam(patientId)
         }
 
-        button("عرض الفحوصات السابقة") {
-            previousExams(patientId)
+        heading("الفحوصات العصبية المحفوظة")
+        showPatientExams(patientId)
+
+        heading("الاستقصاءات")
+        button("إضافة استقصاء جديد") {
+            addInvestigation(patientId)
         }
+        showInvestigations(patientId)
+
+        heading("الصور الطبية")
+        button("إضافة صورة طبية") {
+            addPatientImage(patientId)
+        }
+        showPatientImages(patientId)
 
         backButton()
+    }
+
+    private fun showPatientExams(patientId: Int) {
+        val cursor = db.readableDatabase.rawQuery(
+            """
+            SELECT id, exam_date, clinical_impression, examiner_name
+            FROM neurological_exams
+            WHERE patient_id = ?
+            ORDER BY id DESC
+            """.trimIndent(),
+            arrayOf(patientId.toString())
+        )
+
+        if (cursor.count == 0) {
+            text("لا توجد فحوصات عصبية محفوظة لهذا المريض.")
+        }
+
+        while (cursor.moveToNext()) {
+            val id = cursor.getInt(0)
+            val date = cursor.getString(1) ?: ""
+            val impression = cursor.getString(2) ?: ""
+            val examiner = cursor.getString(3) ?: ""
+
+            root.addView(Button(this).apply {
+                text = "تاريخ الفحص: $date\nالانطباع: $impression\nالطبيب: $examiner"
+                textSize = 14f
+                setTextColor(blue)
+                setBackgroundColor(Color.WHITE)
+                setOnClickListener { displayExam(id) }
+            })
+        }
+
+        cursor.close()
     }
 
     // ---------------- SELECT PATIENT ----------------
@@ -461,6 +514,338 @@ class MainActivity : Activity() {
 
         cursor.close()
         backButton()
+    }
+
+    private fun choosePatientForRecords() {
+        screen("اختيار المريض")
+
+        val cursor = db.readableDatabase.rawQuery(
+            "SELECT id, full_name, file_number FROM patients ORDER BY id DESC",
+            null
+        )
+
+        if (cursor.count == 0) {
+            text("لا يوجد مرضى مسجلون.")
+        }
+
+        while (cursor.moveToNext()) {
+            val id = cursor.getInt(0)
+            val name = cursor.getString(1) ?: ""
+            val file = cursor.getString(2) ?: ""
+
+            root.addView(Button(this).apply {
+                text = "$name - $file"
+                setOnClickListener { patientDetails(id) }
+            })
+        }
+
+        cursor.close()
+        backButton()
+    }
+
+    // ---------------- INVESTIGATIONS ----------------
+
+    private fun addInvestigation(patientId: Int) {
+        screen("إضافة استقصاء")
+
+        heading("نوع الاستقصاء")
+        val type = spinner(
+            listOf("تحاليل مخبرية", "تصوير شعاعي", "أخرى")
+        )
+
+        val name = input("اسم الاستقصاء")
+        val requestDate = input("تاريخ الطلب - مثال: 2026-11-16")
+        requestDate.setText(dateNow())
+
+        val resultDate = input("تاريخ النتيجة")
+        val result = input("النتيجة والتقرير")
+        result.minLines = 3
+        val notes = input("ملاحظات")
+        notes.minLines = 2
+
+        button("حفظ الاستقصاء") {
+            if (name.text.toString().trim().isEmpty()) {
+                name.error = "أدخل اسم الاستقصاء"
+                return@button
+            }
+
+            val values = ContentValues().apply {
+                put("patient_id", patientId)
+                put("investigation_type", type.selectedItem.toString())
+                put("investigation_name", name.text.toString().trim())
+                put("request_date", requestDate.text.toString().trim())
+                put("result_date", resultDate.text.toString().trim())
+                put("result", result.text.toString().trim())
+                put("notes", notes.text.toString().trim())
+            }
+
+            try {
+                val saved = db.saveInvestigation(values)
+                if (saved != -1L) {
+                    showMessage("تم حفظ الاستقصاء بنجاح.")
+                    patientDetails(patientId)
+                } else {
+                    showMessage("تعذر حفظ الاستقصاء.")
+                }
+            } catch (e: Exception) {
+                showMessage("حدث خطأ أثناء الحفظ: ${e.message}")
+            }
+        }
+
+        button("إلغاء والعودة") { patientDetails(patientId) }
+    }
+
+    private fun showInvestigations(patientId: Int) {
+        val cursor = db.readableDatabase.rawQuery(
+            """
+            SELECT investigation_type, investigation_name,
+                   request_date, result_date, result, notes
+            FROM investigations
+            WHERE patient_id = ?
+            ORDER BY id DESC
+            """.trimIndent(),
+            arrayOf(patientId.toString())
+        )
+
+        if (cursor.count == 0) {
+            text("لا توجد استقصاءات محفوظة.")
+        }
+
+        while (cursor.moveToNext()) {
+            val type = cursor.getString(0) ?: ""
+            val name = cursor.getString(1) ?: ""
+            val requestDate = cursor.getString(2) ?: ""
+            val resultDate = cursor.getString(3) ?: ""
+            val result = cursor.getString(4) ?: ""
+            val notes = cursor.getString(5) ?: ""
+
+            val details = """
+                النوع: $type
+                الاستقصاء: $name
+                تاريخ الطلب: $requestDate
+                تاريخ النتيجة: $resultDate
+                النتيجة: $result
+                ملاحظات: $notes
+            """.trimIndent()
+
+            root.addView(TextView(this).apply {
+                text = details
+                textSize = 14f
+                setTextColor(dark)
+                setPadding(12, 12, 12, 12)
+                background = android.graphics.drawable.GradientDrawable().apply {
+                    setColor(Color.WHITE)
+                    cornerRadius = 12f
+                    setStroke(1, lightBlue)
+                }
+            })
+        }
+
+        cursor.close()
+    }
+
+    // ---------------- PATIENT IMAGES ----------------
+
+    private fun addPatientImage(patientId: Int) {
+        screen("إضافة صورة طبية")
+
+        heading("نوع الصورة")
+        val type = spinner(
+            listOf("MRI", "CT", "X-Ray", "Ultrasound", "Other")
+        )
+
+        val date = input("تاريخ الصورة")
+        date.setText(dateNow())
+
+        val description = input("وصف الصورة أو ملاحظات")
+        description.minLines = 2
+
+        button("اختيار صورة من الهاتف وحفظها") {
+            pendingImagePatientId = patientId
+            pendingImageType = type.selectedItem.toString()
+            pendingImageDate = date.text.toString().trim()
+            pendingImageDescription = description.text.toString().trim()
+            openImagePicker()
+        }
+
+        button("إلغاء والعودة") {
+            patientDetails(patientId)
+        }
+    }
+
+    private fun openImagePicker() {
+        try {
+            val intent = Intent(Intent.ACTION_OPEN_DOCUMENT).apply {
+                addCategory(Intent.CATEGORY_OPENABLE)
+                type = "image/*"
+            }
+            startActivityForResult(intent, IMAGE_PICK_REQUEST)
+        } catch (e: Exception) {
+            showMessage("تعذر فتح معرض الصور: ${e.message}")
+        }
+    }
+
+    @Suppress("DEPRECATION")
+    override fun onActivityResult(
+        requestCode: Int,
+        resultCode: Int,
+        data: Intent?
+    ) {
+        super.onActivityResult(requestCode, resultCode, data)
+
+        if (requestCode != IMAGE_PICK_REQUEST) return
+
+        if (resultCode != RESULT_OK || data?.data == null) {
+            Toast.makeText(this, "لم يتم اختيار صورة.", Toast.LENGTH_SHORT).show()
+            return
+        }
+
+        val uri: Uri = data.data!!
+
+        try {
+            var originalName = "medical_image"
+
+            contentResolver.query(
+                uri,
+                arrayOf(OpenableColumns.DISPLAY_NAME),
+                null,
+                null,
+                null
+            )?.use { cursor ->
+                if (cursor.moveToFirst()) {
+                    val index = cursor.getColumnIndex(OpenableColumns.DISPLAY_NAME)
+                    if (index >= 0) {
+                        originalName = cursor.getString(index) ?: originalName
+                    }
+                }
+            }
+
+            val extension = originalName
+                .substringAfterLast('.', "jpg")
+                .lowercase(Locale.ROOT)
+                .filter { it.isLetterOrDigit() }
+                .ifBlank { "jpg" }
+
+            val directory = File(filesDir, "patient_images")
+            if (!directory.exists() && !directory.mkdirs()) {
+                throw Exception("تعذر إنشاء مجلد الصور")
+            }
+
+            val imageFile = File(
+                directory,
+                "${pendingImagePatientId}_${System.currentTimeMillis()}_${UUID.randomUUID()}.$extension"
+            )
+
+            val inputStream = contentResolver.openInputStream(uri)
+                ?: throw Exception("تعذر قراءة الصورة")
+
+            inputStream.use { input ->
+                FileOutputStream(imageFile).use { output ->
+                    input.copyTo(output)
+                }
+            }
+
+            val values = ContentValues().apply {
+                put("patient_id", pendingImagePatientId)
+                put("image_type", pendingImageType)
+                put("image_name", originalName)
+                put("image_path", imageFile.absolutePath)
+                put("image_date", pendingImageDate)
+                put("description", pendingImageDescription)
+            }
+
+            val saved = db.savePatientImage(values)
+
+            if (saved != -1L) {
+                Toast.makeText(
+                    this,
+                    "تم حفظ الصورة وربطها بملف المريض.",
+                    Toast.LENGTH_LONG
+                ).show()
+                patientDetails(pendingImagePatientId)
+            } else {
+                imageFile.delete()
+                showMessage("تعذر حفظ بيانات الصورة.")
+            }
+
+        } catch (e: Exception) {
+            showMessage("حدث خطأ أثناء حفظ الصورة: ${e.message}")
+        }
+    }
+
+    private fun showPatientImages(patientId: Int) {
+        val cursor = db.readableDatabase.rawQuery(
+            """
+            SELECT id, image_type, image_name, image_path,
+                   image_date, description
+            FROM patient_images
+            WHERE patient_id = ?
+            ORDER BY id DESC
+            """.trimIndent(),
+            arrayOf(patientId.toString())
+        )
+
+        if (cursor.count == 0) {
+            text("لا توجد صور طبية محفوظة.")
+        }
+
+        while (cursor.moveToNext()) {
+            val type = cursor.getString(1) ?: ""
+            val name = cursor.getString(2) ?: ""
+            val path = cursor.getString(3) ?: ""
+            val date = cursor.getString(4) ?: ""
+            val description = cursor.getString(5) ?: ""
+
+            root.addView(Button(this).apply {
+                text = "📷 $type\n$name\nالتاريخ: $date\n$description"
+                textSize = 14f
+                setTextColor(blue)
+                setBackgroundColor(Color.WHITE)
+                setOnClickListener {
+                    showMedicalImage(path, name)
+                }
+            })
+        }
+
+        cursor.close()
+    }
+
+    private fun showMedicalImage(path: String, name: String) {
+        val file = File(path)
+
+        if (!file.exists()) {
+            showMessage("ملف الصورة غير موجود في مساحة التطبيق.")
+            return
+        }
+
+        try {
+            val bitmap = BitmapFactory.decodeFile(file.absolutePath)
+
+            if (bitmap == null) {
+                showMessage("تعذر قراءة ملف الصورة.")
+                return
+            }
+
+            val imageView = ImageView(this).apply {
+                setImageBitmap(bitmap)
+                adjustViewBounds = true
+                scaleType = ImageView.ScaleType.FIT_CENTER
+                setPadding(8, 8, 8, 8)
+            }
+
+            val container = ScrollView(this).apply {
+                addView(imageView)
+            }
+
+            AlertDialog.Builder(this)
+                .setTitle(name)
+                .setView(container)
+                .setPositiveButton("إغلاق", null)
+                .show()
+
+        } catch (e: Exception) {
+            showMessage("تعذر عرض الصورة: ${e.message}")
+        }
     }
 
     // ---------------- NEUROLOGICAL EXAM ----------------
@@ -542,9 +927,7 @@ class MainActivity : Activity() {
                 val grade = spinner(
                     listOf("Not tested", "0", "1", "2", "3", "4", "5")
                 )
-                motorFields.add(
-                    MotorField(group, side, muscle, grade)
-                )
+                motorFields.add(MotorField(group, side, muscle, grade))
             }
         }
 
@@ -678,14 +1061,8 @@ class MainActivity : Activity() {
                 put("right_babinski", rightBabinski.selectedItem.toString())
                 put("left_babinski", leftBabinski.selectedItem.toString())
 
-                put(
-                    "right_coordination",
-                    rightCoordination.selectedItem.toString()
-                )
-                put(
-                    "left_coordination",
-                    leftCoordination.selectedItem.toString()
-                )
+                put("right_coordination", rightCoordination.selectedItem.toString())
+                put("left_coordination", leftCoordination.selectedItem.toString())
 
                 put("gait", gait.selectedItem.toString())
                 put("clinical_impression", impression.text.toString())
@@ -730,7 +1107,6 @@ class MainActivity : Activity() {
 
         val leftMap = parseMotorData(leftData)
         val rightMap = parseMotorData(rightData)
-
         val names = (rightMap.keys + leftMap.keys).distinct()
 
         val table = TableLayout(this).apply {
@@ -830,10 +1206,7 @@ class MainActivity : Activity() {
                 setPadding(8, 12, 8, 12)
                 setBackgroundColor(blue)
             }
-            row.addView(
-                cell,
-                TableRow.LayoutParams(0, -2, 1f)
-            )
+            row.addView(cell, TableRow.LayoutParams(0, -2, 1f))
         }
         table.addView(row)
 
@@ -848,10 +1221,7 @@ class MainActivity : Activity() {
                 setPadding(8, 14, 8, 14)
                 setBackgroundColor(Color.WHITE)
             }
-            valuesRow.addView(
-                cell,
-                TableRow.LayoutParams(0, -2, 1f)
-            )
+            valuesRow.addView(cell, TableRow.LayoutParams(0, -2, 1f))
         }
 
         table.addView(valuesRow)
@@ -864,9 +1234,7 @@ class MainActivity : Activity() {
         screen("تفاصيل الفحص العصبي")
 
         val cursor = db.readableDatabase.rawQuery(
-            """
-            SELECT * FROM neurological_exams WHERE id = ?
-            """.trimIndent(),
+            "SELECT * FROM neurological_exams WHERE id = ?",
             arrayOf(examId.toString())
         )
 
@@ -884,6 +1252,7 @@ class MainActivity : Activity() {
 
         text("تاريخ الفحص: ${get("exam_date")}")
         text("رقم المريض: ${get("patient_id")}")
+
         heading("مستوى الوعي")
         text(get("consciousness"))
 
@@ -942,44 +1311,24 @@ class MainActivity : Activity() {
         heading("ملاحظات")
         text(get("notes"))
 
+        val patientId = get("patient_id").toIntOrNull() ?: -1
         cursor.close()
+
+        if (patientId > 0) {
+            button("العودة إلى ملف المريض") {
+                patientDetails(patientId)
+            }
+        }
 
         backButton()
     }
 
     private fun previousExams(patientId: Int) {
         screen("الفحوصات العصبية السابقة")
-
-        val cursor = db.readableDatabase.rawQuery(
-            """
-            SELECT id, exam_date, clinical_impression, examiner_name
-            FROM neurological_exams
-            WHERE patient_id = ?
-            ORDER BY id DESC
-            """.trimIndent(),
-            arrayOf(patientId.toString())
-        )
-
-        if (cursor.count == 0) {
-            text("لا توجد فحوصات سابقة لهذا المريض.")
+        showPatientExams(patientId)
+        button("العودة إلى ملف المريض") {
+            patientDetails(patientId)
         }
-
-        while (cursor.moveToNext()) {
-            val id = cursor.getInt(0)
-            val date = cursor.getString(1) ?: ""
-            val impression = cursor.getString(2) ?: ""
-            val examiner = cursor.getString(3) ?: ""
-
-            root.addView(Button(this).apply {
-                text = "تاريخ الفحص: $date\nالانطباع: $impression\nالطبيب: $examiner"
-                textSize = 14f
-                setTextColor(blue)
-                setBackgroundColor(Color.WHITE)
-                setOnClickListener { displayExam(id) }
-            })
-        }
-
-        cursor.close()
         backButton()
     }
 
