@@ -4,113 +4,100 @@ package com.neurosurgery.app
 import android.app.Activity
 import android.app.AlertDialog
 import android.os.Bundle
-import android.view.Gravity
-import android.view.View
-import android.view.ViewGroup
-import android.widget.*
 import android.content.ContentValues
 import android.graphics.Color
+import android.view.Gravity
+import android.view.View
+import android.widget.*
 import android.text.InputType
 import java.text.SimpleDateFormat
 import java.util.Date
 import java.util.Locale
-import java.util.UUID
 
 class MainActivity : Activity() {
 
-    private lateinit var database: DatabaseHelper
+    private lateinit var db: DatabaseHelper
     private lateinit var root: LinearLayout
-    private var selectedPatientId: String = ""
-    private var selectedPatientName: String = ""
 
-    private val blue = Color.rgb(25, 91, 160)
-    private val darkBlue = Color.rgb(15, 55, 105)
+    private val blue = Color.rgb(20, 75, 135)
+    private val lightBlue = Color.rgb(232, 241, 250)
+    private val dark = Color.rgb(35, 45, 55)
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
+        db = DatabaseHelper(this)
+        home()
+    }
 
-        database = DatabaseHelper(this)
-
+    private fun screen(title: String) {
         root = LinearLayout(this).apply {
             orientation = LinearLayout.VERTICAL
-            setBackgroundColor(Color.rgb(245, 248, 252))
+            setPadding(16, 12, 16, 24)
+            setBackgroundColor(Color.WHITE)
             layoutDirection = View.LAYOUT_DIRECTION_RTL
         }
 
-        setContentView(root)
-        showPatientsScreen()
-    }
-
-    private fun addHeader(title: String) {
         val header = TextView(this).apply {
             text = title
-            textSize = 21f
+            textSize = 23f
             setTextColor(Color.WHITE)
             setBackgroundColor(blue)
             gravity = Gravity.CENTER
             setPadding(12, 20, 12, 20)
         }
-        root.addView(
-            header,
-            LinearLayout.LayoutParams(
-                ViewGroup.LayoutParams.MATCH_PARENT,
-                ViewGroup.LayoutParams.WRAP_CONTENT
-            )
-        )
+        root.addView(header)
+
+        val scroll = ScrollView(this)
+        scroll.addView(root)
+        setContentView(scroll)
     }
 
-    private fun makeButton(
-        text: String,
-        onClick: () -> Unit
-    ): Button {
-        return Button(this).apply {
-            this.text = text
-            textSize = 15f
+    private fun text(value: String, size: Float = 16f): TextView {
+        return TextView(this).apply {
+            text = value
+            textSize = size
+            setTextColor(dark)
+            setPadding(4, 10, 4, 10)
+        }
+    }
+
+    private fun heading(value: String) {
+        root.addView(TextView(this).apply {
+            text = value
+            textSize = 19f
+            setTextColor(blue)
+            setPadding(4, 18, 4, 8)
+        })
+    }
+
+    private fun button(
+        value: String,
+        action: () -> Unit
+    ) {
+        root.addView(Button(this).apply {
+            text = value
+            textSize = 16f
             setTextColor(Color.WHITE)
             setBackgroundColor(blue)
-            setOnClickListener { onClick() }
-        }
+            setOnClickListener { action() }
+        })
     }
 
-    private fun makeText(
-        text: String,
-        size: Float = 16f,
-        bold: Boolean = false
-    ): TextView {
-        return TextView(this).apply {
-            this.text = text
-            textSize = size
-            setTextColor(darkBlue)
-            if (bold) {
-                setTypeface(null, android.graphics.Typeface.BOLD)
-            }
-            setPadding(8, 12, 8, 8)
-        }
-    }
-
-    private fun makeEditText(
+    private fun input(
         hint: String,
-        multiline: Boolean = false
+        type: Int = InputType.TYPE_CLASS_TEXT
     ): EditText {
-        return EditText(this).apply {
-            this.hint = hint
-            textSize = 15f
-            setTextColor(Color.BLACK)
-            setPadding(12, 10, 12, 10)
-            setBackgroundColor(Color.WHITE)
-            if (multiline) {
-                minLines = 2
-                gravity = Gravity.TOP or Gravity.RIGHT
-                inputType = InputType.TYPE_CLASS_TEXT or
-                    InputType.TYPE_TEXT_FLAG_MULTI_LINE
-            } else {
-                inputType = InputType.TYPE_CLASS_TEXT
-            }
-        }
+        val edit = EditText(this)
+        edit.hint = hint
+        edit.textSize = 16f
+        edit.inputType = type
+        edit.setPadding(10, 8, 10, 8)
+        root.addView(edit)
+        return edit
     }
 
-    private fun makeSpinner(options: List<String>): Spinner {
-        val spinner = Spinner(this)
+    private fun spinner(options: List<String>): Spinner {
+        val s = Spinner(this)
         val adapter = ArrayAdapter(
             this,
             android.R.layout.simple_spinner_item,
@@ -119,645 +106,678 @@ class MainActivity : Activity() {
         adapter.setDropDownViewResource(
             android.R.layout.simple_spinner_dropdown_item
         )
-        spinner.adapter = adapter
-        return spinner
+        s.adapter = adapter
+        root.addView(s)
+        return s
     }
 
-    private fun addSpace(container: LinearLayout, height: Int = 8) {
-        val space = View(this)
-        container.addView(
-            space,
-            LinearLayout.LayoutParams(
-                1,
-                height
-            )
-        )
+    private fun dateNow(): String {
+        return SimpleDateFormat(
+            "yyyy-MM-dd",
+            Locale.getDefault()
+        ).format(Date())
     }
 
-    private fun showPatientsScreen() {
-        root.removeAllViews()
-        addHeader("الجراحة العصبية | Neurosurgery")
+    private fun home() {
+        screen("الجراحة العصبية\nNeurosurgery")
+        root.addView(text("نظام إدارة قسم الجراحة العصبية", 18f))
+        root.addView(text("الإصدار التجريبي Beta 1.0"))
 
-        val content = LinearLayout(this).apply {
-            orientation = LinearLayout.VERTICAL
-            setPadding(16, 12, 16, 12)
+        button("1 - إدارة المرضى") { patients() }
+        button("2 - الفحص العصبي") { choosePatientForExam() }
+        button("3 - الزيارات والمتابعة") {
+            placeholder("الزيارات والمتابعة")
         }
+        button("4 - الاستقصاءات والصور") {
+            placeholder("الاستقصاءات والصور")
+        }
+        button("5 - العمليات الجراحية") {
+            placeholder("العمليات الجراحية")
+        }
+        button("6 - الأطباء والكادر الطبي") { doctors() }
+        button("7 - التقارير والإحصائيات") { statistics() }
+        button("8 - الإعدادات والنسخ الاحتياطي") {
+            placeholder("الإعدادات والنسخ الاحتياطي")
+        }
+    }
 
-        val count = database.getPatientCount()
-        content.addView(
-            makeText("إدارة المرضى | Patient Management", 18f, true)
-        )
-        content.addView(
-            makeText("عدد المرضى: $count", 15f)
-        )
+    private fun backButton() {
+        button("العودة إلى القائمة الرئيسية") { home() }
+    }
 
-        content.addView(
-            makeButton("＋ إضافة مريض جديد | Add Patient") {
-                showAddPatientDialog()
-            }
-        )
+    private fun placeholder(title: String) {
+        screen(title)
+        root.addView(text("هذا القسم مخصص للتطوير في الإصدارات القادمة."))
+        backButton()
+    }
 
-        addSpace(content, 12)
+    // ---------------- PATIENTS ----------------
 
-        val search = makeEditText("ابحث باسم المريض أو رقم الملف")
-        content.addView(search)
+    private fun patients() {
+        screen("إدارة المرضى")
 
-        val listContainer = LinearLayout(this).apply {
+        button("إضافة مريض جديد") { addPatient() }
+
+        heading("البحث عن مريض")
+        val search = input("الاسم أو رقم الملف")
+        search.setSingleLine(true)
+
+        val results = LinearLayout(this).apply {
             orientation = LinearLayout.VERTICAL
         }
-        content.addView(listContainer)
+        root.addView(results)
 
-        fun loadPatients(query: String = "") {
-            listContainer.removeAllViews()
+        fun loadPatients(query: String) {
+            results.removeAllViews()
 
-            val cursor = database.readableDatabase.rawQuery(
+            val database = db.readableDatabase
+            val cursor = database.rawQuery(
                 """
-                SELECT id, full_name, age, gender
+                SELECT id, full_name, file_number, diagnosis
                 FROM patients
-                WHERE full_name LIKE ? OR id LIKE ?
-                ORDER BY full_name
+                WHERE full_name LIKE ? OR file_number LIKE ?
+                ORDER BY id DESC
                 """.trimIndent(),
                 arrayOf("%$query%", "%$query%")
             )
 
-            cursor.use {
-                while (it.moveToNext()) {
-                    val id = it.getString(0)
-                    val name = it.getString(1)
-                    val age = it.getString(2) ?: ""
-                    val gender = it.getString(3) ?: ""
-
-                    val patientButton = Button(this).apply {
-                        text = "$name\nرقم الملف: $id   العمر: $age   الجنس: $gender"
-                        textSize = 14f
-                        setTextColor(darkBlue)
-                        setBackgroundColor(Color.WHITE)
-                        setPadding(8, 12, 8, 12)
-                        setOnClickListener {
-                            selectedPatientId = id
-                            selectedPatientName = name
-                            showPatientProfile()
-                        }
-                    }
-
-                    listContainer.addView(
-                        patientButton,
-                        LinearLayout.LayoutParams(
-                            ViewGroup.LayoutParams.MATCH_PARENT,
-                            ViewGroup.LayoutParams.WRAP_CONTENT
-                        ).apply {
-                            bottomMargin = 8
-                        }
-                    )
-                }
+            if (cursor.count == 0) {
+                results.addView(text("لا توجد نتائج."))
             }
 
-            if (listContainer.childCount == 0) {
-                listContainer.addView(
-                    makeText("لا توجد نتائج | No patients found")
+            while (cursor.moveToNext()) {
+                val id = cursor.getInt(0)
+                val name = cursor.getString(1) ?: ""
+                val file = cursor.getString(2) ?: ""
+                val diagnosis = cursor.getString(3) ?: ""
+
+                val item = Button(this).apply {
+                    text = "$name\nرقم الملف: $file\nالتشخيص: $diagnosis"
+                    textSize = 15f
+                    setTextColor(blue)
+                    setBackgroundColor(lightBlue)
+                    setOnClickListener { patientDetails(id) }
+                }
+                results.addView(item)
+            }
+            cursor.close()
+        }
+
+        button("بحث") {
+            loadPatients(search.text.toString().trim())
+        }
+
+        loadPatients("")
+        backButton()
+    }
+
+    private fun addPatient() {
+        screen("إضافة مريض جديد")
+
+        val name = input("الاسم الكامل")
+        val fileNumber = input("رقم الملف")
+        val age = input(
+            "العمر",
+            InputType.TYPE_CLASS_NUMBER
+        )
+        heading("الجنس")
+        val gender = spinner(listOf("ذكر", "أنثى"))
+
+        val phone = input(
+            "رقم الهاتف",
+            InputType.TYPE_CLASS_PHONE
+        )
+        val address = input("العنوان")
+        val diagnosis = input("التشخيص")
+        val notes = input("ملاحظات")
+
+        button("حفظ بيانات المريض") {
+            if (name.text.toString().trim().isEmpty()) {
+                name.error = "يرجى إدخال اسم المريض"
+                return@button
+            }
+
+            val result = db.insertPatient(
+                name.text.toString().trim(),
+                fileNumber.text.toString().trim(),
+                age.text.toString().trim(),
+                gender.selectedItem.toString(),
+                phone.text.toString().trim(),
+                address.text.toString().trim(),
+                diagnosis.text.toString().trim(),
+                notes.text.toString().trim()
+            )
+
+            if (result != -1L) {
+                AlertDialog.Builder(this)
+                    .setMessage("تم حفظ بيانات المريض بنجاح.")
+                    .setPositiveButton("موافق") { _, _ -> patients() }
+                    .show()
+            } else {
+                AlertDialog.Builder(this)
+                    .setMessage("تعذر حفظ بيانات المريض.")
+                    .setPositiveButton("موافق", null)
+                    .show()
+            }
+        }
+
+        backButton()
+    }
+
+    private fun patientDetails(patientId: Int) {
+        screen("ملف المريض")
+
+        val cursor = db.readableDatabase.rawQuery(
+            """
+            SELECT full_name, file_number, age, gender,
+                   phone, address, diagnosis, notes
+            FROM patients WHERE id = ?
+            """.trimIndent(),
+            arrayOf(patientId.toString())
+        )
+
+        if (cursor.moveToFirst()) {
+            heading(cursor.getString(0) ?: "")
+            val labels = listOf(
+                "رقم الملف",
+                "العمر",
+                "الجنس",
+                "الهاتف",
+                "العنوان",
+                "التشخيص",
+                "ملاحظات"
+            )
+
+            for (i in labels.indices) {
+                root.addView(
+                    text("${labels[i]}: ${cursor.getString(i + 1) ?: ""}")
                 )
             }
         }
+        cursor.close()
 
-        search.addTextChangedListener(
-            object : android.text.TextWatcher {
-                override fun beforeTextChanged(
-                    s: CharSequence?,
-                    start: Int,
-                    count: Int,
-                    after: Int
-                ) {}
-
-                override fun onTextChanged(
-                    s: CharSequence?,
-                    start: Int,
-                    before: Int,
-                    count: Int
-                ) {
-                    loadPatients(s?.toString() ?: "")
-                }
-
-                override fun afterTextChanged(
-                    s: android.text.Editable?
-                ) {}
-            }
-        )
-
-        loadPatients()
-
-        val scroll = ScrollView(this)
-        scroll.addView(content)
-        root.addView(
-            scroll,
-            LinearLayout.LayoutParams(
-                ViewGroup.LayoutParams.MATCH_PARENT,
-                0,
-                1f
-            )
-        )
-    }
-
-    private fun showAddPatientDialog() {
-        val form = LinearLayout(this).apply {
-            orientation = LinearLayout.VERTICAL
-            setPadding(20, 10, 20, 10)
+        button("إجراء فحص عصبي جديد") {
+            neurologicalExam(patientId)
         }
 
-        val name = makeEditText("اسم المريض الكامل | Full name")
-        val age = makeEditText("العمر | Age")
-        age.inputType = InputType.TYPE_CLASS_NUMBER
+        button("عرض الفحوصات السابقة") {
+            previousExams(patientId)
+        }
 
-        val gender = makeSpinner(
+        backButton()
+    }
+
+    // ---------------- NEUROLOGICAL EXAM ----------------
+
+    private fun choosePatientForExam() {
+        screen("اختيار المريض للفحص العصبي")
+
+        val results = LinearLayout(this).apply {
+            orientation = LinearLayout.VERTICAL
+        }
+        root.addView(results)
+
+        val cursor = db.readableDatabase.rawQuery(
+            "SELECT id, full_name, file_number FROM patients ORDER BY id DESC",
+            null
+        )
+
+        if (cursor.count == 0) {
+            root.addView(text("لا يوجد مرضى مسجلون."))
+        }
+
+        while (cursor.moveToNext()) {
+            val id = cursor.getInt(0)
+            val name = cursor.getString(1) ?: ""
+            val file = cursor.getString(2) ?: ""
+
+            results.addView(Button(this).apply {
+                text = "$name - $file"
+                setOnClickListener { neurologicalExam(id) }
+            })
+        }
+        cursor.close()
+
+        backButton()
+    }
+
+    private fun neurologicalExam(patientId: Int) {
+        screen("الفحص العصبي")
+
+        root.addView(text("تاريخ الفحص: ${dateNow()}"))
+
+        heading("مستوى الوعي")
+        val consciousnessField = spinner(
             listOf(
-                "غير محدد | Not specified",
-                "ذكر | Male",
-                "أنثى | Female"
+                "Alert - يقظ",
+                "Drowsy - نعسان",
+                "Confused - مشوش",
+                "Stuporous - سبات",
+                "Comatose - غيبوبة"
             )
         )
 
-        form.addView(makeText("اسم المريض"))
-        form.addView(name)
-        form.addView(makeText("العمر"))
-        form.addView(age)
-        form.addView(makeText("الجنس"))
-        form.addView(gender)
+        val gcs = input(
+            "GCS (من 3 إلى 15)",
+            InputType.TYPE_CLASS_NUMBER
+        )
+
+        heading("الأعصاب القحفية Cranial Nerves")
+
+        val cranial = mutableListOf<Triple<String, Spinner, EditText>>()
+
+        val nerveNames = listOf(
+            "I - Olfactory",
+            "II - Optic",
+            "III - Oculomotor",
+            "IV - Trochlear",
+            "V - Trigeminal",
+            "VI - Abducens",
+            "VII - Facial",
+            "VIII - Vestibulocochlear",
+            "IX - Glossopharyngeal",
+            "X - Vagus",
+            "XI - Accessory",
+            "XII - Hypoglossal"
+        )
+
+        for (nerve in nerveNames) {
+            heading(nerve)
+            val status = spinner(
+                listOf("Normal", "Abnormal", "Not tested")
+            )
+            val note = input("ملاحظات $nerve")
+            cranial.add(Triple(nerve, status, note))
+        }
+
+        heading("القوة العضلية Motor Power")
+
+        val motorEntries =
+            mutableListOf<Triple<String, String, Spinner>>()
+
+        fun addMotorGroup(group: String, side: String, muscles: List<String>) {
+            heading("$group - $side")
+            for (muscle in muscles) {
+                root.addView(text(muscle))
+                val grade = spinner(
+                    listOf(
+                        "Not tested",
+                        "0",
+                        "1",
+                        "2",
+                        "3",
+                        "4",
+                        "5"
+                    )
+                )
+                motorEntries.add(Triple(group, side, grade))
+            }
+        }
+
+        val upperMuscles = listOf(
+            "Deltoid",
+            "Biceps",
+            "Triceps",
+            "Wrist extensors",
+            "Finger flexors"
+        )
+
+        val lowerMuscles = listOf(
+            "Iliopsoas",
+            "Quadriceps",
+            "Hamstrings",
+            "Ankle dorsiflexors",
+            "Plantar flexors"
+        )
+
+        addMotorGroup("Upper", "Right", upperMuscles)
+        addMotorGroup("Upper", "Left", upperMuscles)
+        addMotorGroup("Lower", "Right", lowerMuscles)
+        addMotorGroup("Lower", "Left", lowerMuscles)
+
+        fun motorText(group: String, side: String): String {
+            return motorEntries
+                .filter { it.first == group && it.second == side }
+                .joinToString("\n") {
+                    "${it.third.tag ?: ""}: ${it.third.selectedItem}"
+                }
+        }
+
+        // ---------------- SENSATION ----------------
+
+        heading("الإحساس Sensory Examination")
+
+        heading("Right Side")
+        val rightSensory = spinner(
+            listOf(
+                "Not tested",
+                "Normal",
+                "Reduced",
+                "Absent",
+                "Increased"
+            )
+        )
+        val rightSensoryNote = input("ملاحظات الإحساس في الجانب الأيمن")
+
+        heading("Left Side")
+        val leftSensory = spinner(
+            listOf(
+                "Not tested",
+                "Normal",
+                "Reduced",
+                "Absent",
+                "Increased"
+            )
+        )
+        val leftSensoryNote = input("ملاحظات الإحساس في الجانب الأيسر")
+
+        // ---------------- REFLEXES ----------------
+
+        heading("المنعكسات Reflexes")
+
+        heading("Right Reflexes")
+        val rightReflexes = spinner(
+            listOf(
+                "Not tested",
+                "Normal",
+                "Brisk",
+                "Reduced",
+                "Absent"
+            )
+        )
+        val rightBabinski = spinner(
+            listOf("Not tested", "Negative", "Positive")
+        )
+
+        heading("Left Reflexes")
+        val leftReflexes = spinner(
+            listOf(
+                "Not tested",
+                "Normal",
+                "Brisk",
+                "Reduced",
+                "Absent"
+            )
+        )
+        val leftBabinski = spinner(
+            listOf("Not tested", "Negative", "Positive")
+        )
+
+        val reflexNotes = input("ملاحظات المنعكسات")
+
+        // ---------------- COORDINATION ----------------
+
+        heading("التناسق الحركي Coordination")
+
+        heading("Right")
+        val rightCoordination = spinner(
+            listOf(
+                "Not tested",
+                "Normal",
+                "Abnormal",
+                "Ataxia"
+            )
+        )
+
+        heading("Left")
+        val leftCoordination = spinner(
+            listOf(
+                "Not tested",
+                "Normal",
+                "Abnormal",
+                "Ataxia"
+            )
+        )
+
+        heading("المشي والتوازن Gait")
+        val gait = spinner(
+            listOf(
+                "Not tested",
+                "Normal",
+                "Abnormal",
+                "Ataxic gait",
+                "Unsteady gait"
+            )
+        )
+
+        // ---------------- IMPRESSION ----------------
+
+        heading("الانطباع السريري Clinical Impression")
+        val impression = input("الانطباع السريري")
+
+        heading("الطبيب الفاحص")
+        val doctors = db.getDoctors().toMutableList()
+        if (doctors.isEmpty()) {
+            doctors.add("Not specified")
+        }
+        val examiner = spinner(doctors)
+
+        button("إضافة طبيب جديد") {
+            addDoctorDialog {
+                neurologicalExam(patientId)
+            }
+        }
+
+        heading("ملاحظات إضافية")
+        val notes = input("ملاحظات")
+
+        button("حفظ الفحص العصبي") {
+            val gcsValue = gcs.text.toString().trim()
+            if (gcsValue.isNotEmpty()) {
+                val number = gcsValue.toIntOrNull()
+                if (number == null || number !in 3..15) {
+                    gcs.error = "أدخل قيمة من 3 إلى 15"
+                    return@button
+                }
+            }
+
+            val cranialText = cranial.joinToString("\n") {
+                "${it.first}: ${it.second.selectedItem} - ${it.third.text}"
+            }
+
+            val values = ContentValues().apply {
+                put("patient_id", patientId)
+                put("exam_date", dateNow())
+                put(
+                    "consciousness",
+                    "${consciousnessField.selectedItem}; GCS: $gcsValue"
+                )
+                put("cranial_nerves", cranialText)
+
+                put(
+                    "right_upper_motor",
+                    motorText("Upper", "Right")
+                )
+                put(
+                    "left_upper_motor",
+                    motorText("Upper", "Left")
+                )
+                put(
+                    "right_lower_motor",
+                    motorText("Lower", "Right")
+                )
+                put(
+                    "left_lower_motor",
+                    motorText("Lower", "Left")
+                )
+
+                put(
+                    "right_sensation",
+                    "${rightSensory.selectedItem}: ${rightSensoryNote.text}"
+                )
+                put(
+                    "left_sensation",
+                    "${leftSensory.selectedItem}: ${leftSensoryNote.text}"
+                )
+
+                put(
+                    "right_reflexes",
+                    "${rightReflexes.selectedItem}"
+                )
+                put(
+                    "left_reflexes",
+                    "${leftReflexes.selectedItem}"
+                )
+                put(
+                    "right_babinski",
+                    rightBabinski.selectedItem.toString()
+                )
+                put(
+                    "left_babinski",
+                    leftBabinski.selectedItem.toString()
+                )
+
+                put(
+                    "right_coordination",
+                    rightCoordination.selectedItem.toString()
+                )
+                put(
+                    "left_coordination",
+                    leftCoordination.selectedItem.toString()
+                )
+                put("gait", gait.selectedItem.toString())
+                put("clinical_impression", impression.text.toString())
+                put("examiner_name", examiner.selectedItem.toString())
+                put(
+                    "notes",
+                    "${reflexNotes.text}\n${notes.text}"
+                )
+            }
+
+            val result = db.saveNeurologicalExam(values)
+
+            if (result != -1L) {
+                AlertDialog.Builder(this)
+                    .setMessage("تم حفظ الفحص العصبي بنجاح.")
+                    .setPositiveButton("موافق") { _, _ ->
+                        patientDetails(patientId)
+                    }
+                    .show()
+            } else {
+                AlertDialog.Builder(this)
+                    .setMessage("تعذر حفظ الفحص العصبي.")
+                    .setPositiveButton("موافق", null)
+                    .show()
+            }
+        }
+
+        backButton()
+    }
+
+    // ---------------- PREVIOUS EXAMS ----------------
+
+    private fun previousExams(patientId: Int) {
+        screen("الفحوصات العصبية السابقة")
+
+        val cursor = db.readableDatabase.rawQuery(
+            """
+            SELECT exam_date, consciousness, clinical_impression,
+                   examiner_name, notes
+            FROM neurological_exams
+            WHERE patient_id = ?
+            ORDER BY id DESC
+            """.trimIndent(),
+            arrayOf(patientId.toString())
+        )
+
+        if (cursor.count == 0) {
+            root.addView(text("لا توجد فحوصات سابقة لهذا المريض."))
+        }
+
+        while (cursor.moveToNext()) {
+            heading("تاريخ الفحص: ${cursor.getString(0) ?: ""}")
+            root.addView(
+                text("الوعي: ${cursor.getString(1) ?: ""}")
+            )
+            root.addView(
+                text("الانطباع السريري: ${cursor.getString(2) ?: ""}")
+            )
+            root.addView(
+                text("الطبيب: ${cursor.getString(3) ?: ""}")
+            )
+            root.addView(
+                text("ملاحظات: ${cursor.getString(4) ?: ""}")
+            )
+            root.addView(View(this).apply {
+                setBackgroundColor(lightBlue)
+                layoutParams = LinearLayout.LayoutParams(
+                    LinearLayout.LayoutParams.MATCH_PARENT,
+                    2
+                )
+            })
+        }
+
+        cursor.close()
+        backButton()
+    }
+
+    // ---------------- DOCTORS ----------------
+
+    private fun doctors() {
+        screen("الأطباء والكادر الطبي")
+
+        button("إضافة طبيب") {
+            addDoctorDialog { doctors() }
+        }
+
+        heading("قائمة الأطباء")
+
+        val list = db.getDoctors()
+        if (list.isEmpty()) {
+            root.addView(text("لا يوجد أطباء مسجلون."))
+        } else {
+            list.forEachIndexed { index, name ->
+                root.addView(text("${index + 1}. $name"))
+            }
+        }
+
+        backButton()
+    }
+
+    private fun addDoctorDialog(afterSave: () -> Unit) {
+        val field = EditText(this)
+        field.hint = "اسم الطبيب"
 
         AlertDialog.Builder(this)
-            .setTitle("إضافة مريض جديد")
-            .setView(form)
-            .setNegativeButton("إلغاء", null)
+            .setTitle("إضافة طبيب")
+            .setView(field)
             .setPositiveButton("حفظ") { _, _ ->
-                val patientName = name.text.toString().trim()
-                val patientAge = age.text.toString().trim()
-                val patientGender = gender.selectedItem.toString()
-
-                if (patientName.isEmpty()) {
-                    Toast.makeText(
-                        this,
-                        "يرجى إدخال اسم المريض",
-                        Toast.LENGTH_LONG
-                    ).show()
-                    return@setPositiveButton
-                }
-
-                val id = UUID.randomUUID().toString()
-
-                val saved = database.insertPatient(
-                    id,
-                    patientName,
-                    patientAge,
-                    patientGender
-                )
-
-                if (saved) {
-                    Toast.makeText(
-                        this,
-                        "تم حفظ المريض",
-                        Toast.LENGTH_SHORT
-                    ).show()
-                    showPatientsScreen()
-                } else {
-                    Toast.makeText(
-                        this,
-                        "تعذر حفظ المريض",
-                        Toast.LENGTH_LONG
-                    ).show()
-                }
-            }
-            .show()
-    }
-
-    private fun showPatientProfile() {
-        root.removeAllViews()
-        addHeader("ملف المريض | Patient Profile")
-
-        val content = LinearLayout(this).apply {
-            orientation = LinearLayout.VERTICAL
-            setPadding(16, 16, 16, 16)
-        }
-
-        content.addView(
-            makeText(selectedPatientName, 21f, true)
-        )
-        content.addView(
-            makeText("رقم الملف: $selectedPatientId", 14f)
-        )
-
-        content.addView(
-            makeButton("الفحص العصبي | Neurological Examination") {
-                showNeurologicalExam()
-            }
-        )
-
-        addSpace(content, 12)
-
-        content.addView(
-            makeButton("العودة إلى قائمة المرضى | Back") {
-                showPatientsScreen()
-            }
-        )
-
-        val scroll = ScrollView(this)
-        scroll.addView(content)
-        root.addView(
-            scroll,
-            LinearLayout.LayoutParams(
-                ViewGroup.LayoutParams.MATCH_PARENT,
-                0,
-                1f
-            )
-        )
-    }
-
-    private fun showNeurologicalExam() {
-        root.removeAllViews()
-        addHeader("الفحص العصبي | Neurological Examination")
-
-        val content = LinearLayout(this).apply {
-            orientation = LinearLayout.VERTICAL
-            setPadding(14, 10, 14, 20)
-        }
-
-        content.addView(
-            makeText("المريض: $selectedPatientName", 17f, true)
-        )
-
-        val consciousness = addSpinnerSection(
-            content,
-            "مستوى الوعي | Level of Consciousness",
-            listOf(
-                "غير مفحوص | Not tested",
-                "يقظ | Alert",
-                "نعسان | Drowsy",
-                "مشوش | Confused",
-                "ذهولي | Stuporous",
-                "فاقد الوعي | Comatose"
-            )
-        )
-
-        val gcs = addSpinnerSection(
-            content,
-            "مقياس غلاسكو | Glasgow Coma Scale",
-            (3..15).map { it.toString() }
-        )
-
-        val cranial = addEditSection(
-            content,
-            "الأعصاب القحفية I–XII | Cranial Nerves",
-            "دوّن نتيجة كل عصب قحفي والجهة المصابة"
-        )
-
-        content.addView(
-            makeText("القوة العضلية | Motor Power", 19f, true)
-        )
-
-        val rightUpper = addSpinnerSection(
-            content,
-            "الطرف العلوي الأيمن | Right Upper Limb",
-            motorOptions()
-        )
-
-        val leftUpper = addSpinnerSection(
-            content,
-            "الطرف العلوي الأيسر | Left Upper Limb",
-            motorOptions()
-        )
-
-        val rightLower = addSpinnerSection(
-            content,
-            "الطرف السفلي الأيمن | Right Lower Limb",
-            motorOptions()
-        )
-
-        val leftLower = addSpinnerSection(
-            content,
-            "الطرف السفلي الأيسر | Left Lower Limb",
-            motorOptions()
-        )
-
-        val rightMotorNotes = addEditSection(
-            content,
-            "ملاحظات القوة - اليمين | Right Motor Notes",
-            "المجموعات العضلية والعضلات التي تم فحصها"
-        )
-
-        val leftMotorNotes = addEditSection(
-            content,
-            "ملاحظات القوة - اليسار | Left Motor Notes",
-            "المجموعات العضلية والعضلات التي تم فحصها"
-        )
-
-        content.addView(
-            makeText("فحص الإحساس | Sensory Examination", 19f, true)
-        )
-
-        val sensoryOptions = listOf(
-            "غير مفحوص | Not tested",
-            "طبيعي | Normal",
-            "منخفض | Reduced",
-            "غائب | Absent",
-            "زائد | Increased",
-            "متغير | Altered"
-        )
-
-        val rightSensation = addSpinnerSection(
-            content,
-            "الإحساس الأيمن | Right Sensation",
-            sensoryOptions
-        )
-
-        val leftSensation = addSpinnerSection(
-            content,
-            "الإحساس الأيسر | Left Sensation",
-            sensoryOptions
-        )
-
-        val rightSensoryNotes = addEditSection(
-            content,
-            "ملاحظات الإحساس - اليمين | Right Sensory Notes",
-            "الموقع ونوع الإحساس"
-        )
-
-        val leftSensoryNotes = addEditSection(
-            content,
-            "ملاحظات الإحساس - اليسار | Left Sensory Notes",
-            "الموقع ونوع الإحساس"
-        )
-
-        content.addView(
-            makeText("المنعكسات | Reflexes", 19f, true)
-        )
-
-        val reflexOptions = listOf(
-            "غير مفحوص | Not tested",
-            "طبيعي | Normal",
-            "مفرط | Brisk",
-            "منخفض | Reduced",
-            "غائب | Absent"
-        )
-
-        val rightReflexes = addSpinnerSection(
-            content,
-            "المنعكسات اليمنى | Right Reflexes",
-            reflexOptions
-        )
-
-        val leftReflexes = addSpinnerSection(
-            content,
-            "المنعكسات اليسرى | Left Reflexes",
-            reflexOptions
-        )
-
-        val babinskiOptions = listOf(
-            "غير مفحوص | Not tested",
-            "سلبي | Negative",
-            "إيجابي | Positive",
-            "غير واضح | Equivocal"
-        )
-
-        val rightBabinski = addSpinnerSection(
-            content,
-            "بابنسكي الأيمن | Right Babinski",
-            babinskiOptions
-        )
-
-        val leftBabinski = addSpinnerSection(
-            content,
-            "بابنسكي الأيسر | Left Babinski",
-            babinskiOptions
-        )
-
-        val rightReflexNotes = addEditSection(
-            content,
-            "ملاحظات المنعكسات - اليمين | Right Reflex Notes",
-            "مثلاً: Biceps, Triceps, Knee, Ankle"
-        )
-
-        val leftReflexNotes = addEditSection(
-            content,
-            "ملاحظات المنعكسات - اليسار | Left Reflex Notes",
-            "مثلاً: Biceps, Triceps, Knee, Ankle"
-        )
-
-        content.addView(
-            makeText("التناسق | Coordination", 19f, true)
-        )
-
-        val coordinationOptions = listOf(
-            "غير مفحوص | Not tested",
-            "طبيعي | Normal",
-            "غير طبيعي | Abnormal",
-            "ترنح | Ataxia",
-            "اختلال التناسق | Dysmetria"
-        )
-
-        val rightCoordination = addSpinnerSection(
-            content,
-            "التناسق الأيمن | Right Coordination",
-            coordinationOptions
-        )
-
-        val leftCoordination = addSpinnerSection(
-            content,
-            "التناسق الأيسر | Left Coordination",
-            coordinationOptions
-        )
-
-        val gait = addSpinnerSection(
-            content,
-            "المشي والتوازن | Gait & Balance",
-            listOf(
-                "غير مفحوص | Not tested",
-                "طبيعي | Normal",
-                "غير مستقر | Unsteady",
-                "ترنح | Ataxic",
-                "غير قادر على المشي | Unable to walk"
-            )
-        )
-
-        val gaitNotes = addEditSection(
-            content,
-            "ملاحظات المشي والتوازن | Gait Notes",
-            "دوّن وصف المشية والتوازن"
-        )
-
-        val impression = addEditSection(
-            content,
-            "الانطباع السريري | Clinical Impression",
-            "ملخص نتائج الفحص"
-        )
-
-        val examiner = addEditSection(
-            content,
-            "اسم الفاحص | Examiner Name",
-            "اسم الطبيب أو الفاحص"
-        )
-
-        val generalNotes = addEditSection(
-            content,
-            "ملاحظات عامة | General Notes",
-            "أي تفاصيل إضافية"
-        )
-
-        addSpace(content, 16)
-
-        content.addView(
-            makeButton("حفظ الفحص العصبي | Save Examination") {
-
-                if (selectedPatientId.isBlank()) {
-                    Toast.makeText(
-                        this,
-                        "لم يتم تحديد مريض",
-                        Toast.LENGTH_LONG
-                    ).show()
-                    return@makeButton
-                }
-
-                val values = ContentValues().apply {
-                    put("patient_id", selectedPatientId)
-                    put(
-                        "exam_date",
-                        SimpleDateFormat(
-                            "yyyy-MM-dd HH:mm",
-                            Locale.getDefault()
-                        ).format(Date())
-                    )
-
-                    put("consciousness", consciousness.selectedItem.toString())
-                    put("cranial_nerves", cranial.text.toString())
-
-                    put("right_upper_motor", rightUpper.selectedItem.toString() +
-                        "\n" + rightMotorNotes.text.toString())
-                    put("left_upper_motor", leftUpper.selectedItem.toString() +
-                        "\n" + leftMotorNotes.text.toString())
-
-                    put("right_lower_motor", rightLower.selectedItem.toString())
-                    put("left_lower_motor", leftLower.selectedItem.toString())
-
-                    put("right_sensation", rightSensation.selectedItem.toString() +
-                        "\n" + rightSensoryNotes.text.toString())
-                    put("left_sensation", leftSensation.selectedItem.toString() +
-                        "\n" + leftSensoryNotes.text.toString())
-
-                    put("right_reflexes", rightReflexes.selectedItem.toString() +
-                        "\n" + rightReflexNotes.text.toString())
-                    put("left_reflexes", leftReflexes.selectedItem.toString() +
-                        "\n" + leftReflexNotes.text.toString())
-
-                    put("right_babinski", rightBabinski.selectedItem.toString())
-                    put("left_babinski", leftBabinski.selectedItem.toString())
-
-                    put("right_coordination", rightCoordination.selectedItem.toString())
-                    put("left_coordination", leftCoordination.selectedItem.toString())
-
-                    put("gait", gait.selectedItem.toString() +
-                        "\n" + gaitNotes.text.toString())
-
-                    put(
-                        "clinical_impression",
-                        "GCS: ${gcs.selectedItem}\n" +
-                            impression.text.toString()
-                    )
-
-                    put("examiner_name", examiner.text.toString())
-                    put("notes", generalNotes.text.toString())
-                }
-
-                try {
-                    val result = database.writableDatabase.insert(
-                        DatabaseHelper.TABLE_EXAMS,
-                        null,
-                        values
-                    )
-
+                val name = field.text.toString().trim()
+                if (name.isNotEmpty()) {
+                    val result = db.addDoctor(name)
                     if (result != -1L) {
                         Toast.makeText(
                             this,
-                            "تم حفظ الفحص بنجاح",
-                            Toast.LENGTH_LONG
+                            "تمت إضافة الطبيب",
+                            Toast.LENGTH_SHORT
                         ).show()
-                        showPatientProfile()
+                        afterSave()
                     } else {
                         Toast.makeText(
                             this,
-                            "تعذر حفظ الفحص",
-                            Toast.LENGTH_LONG
+                            "تعذرت إضافة الطبيب",
+                            Toast.LENGTH_SHORT
                         ).show()
                     }
-                } catch (e: Exception) {
-                    Toast.makeText(
-                        this,
-                        "خطأ أثناء الحفظ: ${e.message}",
-                        Toast.LENGTH_LONG
-                    ).show()
                 }
             }
-        )
-
-        content.addView(
-            makeButton("عودة إلى ملف المريض | Back") {
-                showPatientProfile()
-            }
-        )
-
-        val scroll = ScrollView(this)
-        scroll.addView(content)
-
-        root.addView(
-            scroll,
-            LinearLayout.LayoutParams(
-                ViewGroup.LayoutParams.MATCH_PARENT,
-                0,
-                1f
-            )
-        )
+            .setNegativeButton("إلغاء", null)
+            .show()
     }
 
-    private fun motorOptions(): List<String> {
-        return listOf(
-            "غير مفحوص | Not tested",
-            "0/5 - لا توجد حركة | No movement",
-            "1/5 - انقباض بسيط | Flicker",
-            "2/5 - حركة دون الجاذبية | Movement without gravity",
-            "3/5 - حركة ضد الجاذبية | Against gravity",
-            "4/5 - حركة ضد مقاومة | Against resistance",
-            "5/5 - قوة طبيعية | Normal power"
-        )
+    // ---------------- STATISTICS ----------------
+
+    private fun statistics() {
+        screen("التقارير والإحصائيات")
+
+        val count = db.getPatientCount()
+        heading("إحصائيات المرضى")
+        root.addView(text("إجمالي عدد المرضى المسجلين: $count"))
+
+        backButton()
     }
 
-    private fun addSpinnerSection(
-        container: LinearLayout,
-        title: String,
-        options: List<String>
-    ): Spinner {
-        container.addView(makeText(title, 15f, true))
-        val spinner = makeSpinner(options)
-        container.addView(
-            spinner,
-            LinearLayout.LayoutParams(
-                ViewGroup.LayoutParams.MATCH_PARENT,
-                ViewGroup.LayoutParams.WRAP_CONTENT
-            )
-        )
-        addSpace(container, 5)
-        return spinner
-    }
-
-    private fun addEditSection(
-        container: LinearLayout,
-        title: String,
-        hint: String
-    ): EditText {
-        container.addView(makeText(title, 15f, true))
-        val editText = makeEditText(hint, true)
-        container.addView(
-            editText,
-            LinearLayout.LayoutParams(
-                ViewGroup.LayoutParams.MATCH_PARENT,
-                ViewGroup.LayoutParams.WRAP_CONTENT
-            )
-        )
-        addSpace(container, 5)
-        return editText
+    override fun onBackPressed() {
+        home()
     }
 }
