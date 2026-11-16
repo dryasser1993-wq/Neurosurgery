@@ -1,6 +1,4 @@
 
-package com.neurosurgery.app
-
 import android.content.ContentValues
 import android.content.Context
 import android.database.sqlite.SQLiteDatabase
@@ -11,7 +9,7 @@ class DatabaseHelper(context: Context) :
 
     companion object {
         private const val DATABASE_NAME = "neurosurgery.db"
-        private const val DATABASE_VERSION = 5
+        private const val DATABASE_VERSION = 6
     }
 
     override fun onCreate(db: SQLiteDatabase) {
@@ -41,18 +39,7 @@ class DatabaseHelper(context: Context) :
 
         createNeurologicalExamsTable(db)
         createStaffTable(db)
-
-        db.execSQL("""
-            CREATE TABLE IF NOT EXISTS surgeries (
-                id INTEGER PRIMARY KEY AUTOINCREMENT,
-                patient_id INTEGER,
-                surgery_date TEXT,
-                surgery_type TEXT,
-                surgeon TEXT,
-                notes TEXT
-            )
-        """)
-
+        createSurgeriesTable(db)
         createInvestigationsTable(db)
         createPatientImagesTable(db)
     }
@@ -93,6 +80,26 @@ class DatabaseHelper(context: Context) :
                 role TEXT,
                 specialty TEXT,
                 phone TEXT,
+                notes TEXT
+            )
+        """)
+    }
+
+    private fun createSurgeriesTable(db: SQLiteDatabase) {
+        db.execSQL("""
+            CREATE TABLE IF NOT EXISTS surgeries (
+                id INTEGER PRIMARY KEY AUTOINCREMENT,
+                patient_id INTEGER,
+                surgery_date TEXT,
+                surgery_type TEXT,
+                surgeon TEXT,
+                surgeon_id INTEGER,
+                assistants TEXT,
+                preop_diagnosis TEXT,
+                procedure_details TEXT,
+                complications TEXT,
+                outcome TEXT,
+                report TEXT,
                 notes TEXT
             )
         """)
@@ -163,6 +170,17 @@ class DatabaseHelper(context: Context) :
             createInvestigationsTable(db)
             createPatientImagesTable(db)
         }
+
+        if (oldVersion < 6) {
+            addColumn(db, "surgeries", "surgeon_id", "INTEGER")
+            addColumn(db, "surgeries", "assistants", "TEXT")
+            addColumn(db, "surgeries", "preop_diagnosis", "TEXT")
+            addColumn(db, "surgeries", "procedure_details", "TEXT")
+            addColumn(db, "surgeries", "complications", "TEXT")
+            addColumn(db, "surgeries", "outcome", "TEXT")
+            addColumn(db, "surgeries", "report", "TEXT")
+            addColumn(db, "surgeries", "notes", "TEXT")
+        }
     }
 
     private fun addColumn(
@@ -174,7 +192,7 @@ class DatabaseHelper(context: Context) :
         try {
             db.execSQL("ALTER TABLE $table ADD COLUMN $column $type")
         } catch (_: Exception) {
-            // العمود موجود مسبقاً؛ لا نحذف البيانات.
+            // العمود موجود مسبقاً.
         }
     }
 
@@ -237,27 +255,38 @@ class DatabaseHelper(context: Context) :
         return doctors
     }
 
+    fun getDoctorId(name: String): Long {
+        val cursor = readableDatabase.rawQuery(
+            "SELECT id FROM staff WHERE full_name = ? AND role = ? LIMIT 1",
+            arrayOf(name, "Doctor")
+        )
+
+        cursor.use {
+            return if (it.moveToFirst()) it.getLong(0) else -1L
+        }
+    }
+
     fun saveNeurologicalExam(values: ContentValues): Long {
         return writableDatabase.insert(
-            "neurological_exams",
-            null,
-            values
+            "neurological_exams", null, values
         )
     }
 
     fun saveInvestigation(values: ContentValues): Long {
         return writableDatabase.insert(
-            "investigations",
-            null,
-            values
+            "investigations", null, values
         )
     }
 
     fun savePatientImage(values: ContentValues): Long {
         return writableDatabase.insert(
-            "patient_images",
-            null,
-            values
+            "patient_images", null, values
+        )
+    }
+
+    fun saveSurgery(values: ContentValues): Long {
+        return writableDatabase.insert(
+            "surgeries", null, values
         )
     }
 }
