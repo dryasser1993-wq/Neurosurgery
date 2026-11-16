@@ -11,7 +11,7 @@ class DatabaseHelper(context: Context) :
 
     companion object {
         private const val DATABASE_NAME = "neurosurgery.db"
-        private const val DATABASE_VERSION = 4
+        private const val DATABASE_VERSION = 5
     }
 
     override fun onCreate(db: SQLiteDatabase) {
@@ -52,6 +52,9 @@ class DatabaseHelper(context: Context) :
                 notes TEXT
             )
         """)
+
+        createInvestigationsTable(db)
+        createPatientImagesTable(db)
     }
 
     private fun createNeurologicalExamsTable(db: SQLiteDatabase) {
@@ -95,6 +98,35 @@ class DatabaseHelper(context: Context) :
         """)
     }
 
+    private fun createInvestigationsTable(db: SQLiteDatabase) {
+        db.execSQL("""
+            CREATE TABLE IF NOT EXISTS investigations (
+                id INTEGER PRIMARY KEY AUTOINCREMENT,
+                patient_id INTEGER NOT NULL,
+                investigation_type TEXT,
+                investigation_name TEXT,
+                request_date TEXT,
+                result_date TEXT,
+                result TEXT,
+                notes TEXT
+            )
+        """)
+    }
+
+    private fun createPatientImagesTable(db: SQLiteDatabase) {
+        db.execSQL("""
+            CREATE TABLE IF NOT EXISTS patient_images (
+                id INTEGER PRIMARY KEY AUTOINCREMENT,
+                patient_id INTEGER NOT NULL,
+                image_type TEXT,
+                image_name TEXT,
+                image_path TEXT NOT NULL,
+                image_date TEXT,
+                description TEXT
+            )
+        """)
+    }
+
     override fun onUpgrade(
         db: SQLiteDatabase,
         oldVersion: Int,
@@ -125,6 +157,11 @@ class DatabaseHelper(context: Context) :
         if (oldVersion < 4) {
             createStaffTable(db)
             createNeurologicalExamsTable(db)
+        }
+
+        if (oldVersion < 5) {
+            createInvestigationsTable(db)
+            createPatientImagesTable(db)
         }
     }
 
@@ -203,6 +240,22 @@ class DatabaseHelper(context: Context) :
     fun saveNeurologicalExam(values: ContentValues): Long {
         return writableDatabase.insert(
             "neurological_exams",
+            null,
+            values
+        )
+    }
+
+    fun saveInvestigation(values: ContentValues): Long {
+        return writableDatabase.insert(
+            "investigations",
+            null,
+            values
+        )
+    }
+
+    fun savePatientImage(values: ContentValues): Long {
+        return writableDatabase.insert(
+            "patient_images",
             null,
             values
         )
