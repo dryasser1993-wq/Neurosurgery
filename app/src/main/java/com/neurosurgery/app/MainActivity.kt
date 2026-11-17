@@ -417,53 +417,96 @@ class MainActivity : Activity() {
         return edit
     }
 
-    private fun showAddPatient() {
-        createRoot()
-        addHeader("إضافة مريض جديد")
-        val name = createInput("الاسم الكامل")
-        val fileNumber = createInput("رقم الملف")
-        val age = createInput("العمر")
-        val gender = createInput("الجنس")
-        val phone = createInput("رقم الهاتف")
-        val address = createInput("العنوان")
-        val diagnosis = createInput("التشخيص")
-        val specialist = createInput("الطبيب المختص")
-        val notes = createInput("ملاحظات", true)
-        addText("الحالة الجراحية", 17f, true)
-        val statuses = listOf(
-            DatabaseHelper.SURGICAL_NOT_PLANNED,
-            DatabaseHelper.SURGICAL_PREPARATION,
-            DatabaseHelper.SURGICAL_READY,
-            DatabaseHelper.SURGICAL_COMPLETED
-        )
-        val statusSpinner = Spinner(this)
-        statusSpinner.adapter = ArrayAdapter(this, android.R.layout.simple_spinner_dropdown_item, statuses)
-        root.addView(statusSpinner)
-        addButton("حفظ بيانات المريض") {
-            val patientName = name.text.toString().trim()
-            if (patientName.isEmpty()) {
-                name.error = "يرجى إدخال اسم المريض"
-                return@addButton
-            }
-            val id = db.insertPatient(
-                patientName, fileNumber.text.toString(), age.text.toString(),
-                gender.text.toString(), phone.text.toString(), address.text.toString(),
-                diagnosis.text.toString(), notes.text.toString(), specialist.text.toString()
-            )
-            if (id == -1L) {
-                showMessage("تعذر حفظ بيانات المريض")
-                return@addButton
-            }
-            val status = statusSpinner.selectedItem.toString()
-            if (status != DatabaseHelper.SURGICAL_NOT_PLANNED) {
-                db.savePatientSurgicalStatus(id.toInt(), status)
-            }
-            showMessage("تم تسجيل المريض بنجاح")
-            showPatientDetails(id.toInt(), patientName)
+    
+private fun showAddPatient() {
+    createRoot()
+    addHeader("تسجيل مريض جديد")
+
+    addText("المعلومات الشخصية", 18f, true)
+
+    val name = createInput("الاسم الكامل للمريض")
+    val fileNumber = createInput("رقم الملف (يُولد تلقائيًا إذا تركته فارغًا)")
+    val age = createInput("العمر")
+    val gender = createInput("الجنس")
+    val phone = createInput("رقم الهاتف")
+    val address = createInput("العنوان")
+
+    addText("معلومات المراجعة والدخول", 18f, true)
+
+    val admissionType = createInput("نوع المراجعة: إسعاف / عيادة / محول")
+    val referralSource = createInput("مصدر التحويل")
+    val injuryMechanism = createInput("آلية الإصابة إن وجدت", true)
+
+    addText("التشخيص الطبي", 18f, true)
+
+    val diagnosis = createInput("التشخيص الرئيسي", true)
+    val outpatientDiagnosis = createInput("تشخيص العيادة الخارجية", true)
+    val differentialDiagnoses = createInput("التشخيصات التفريقية", true)
+    val specialist = createInput("الطبيب المختص")
+    val notes = createInput("ملاحظات إضافية", true)
+
+    addText("الحالة الجراحية", 17f, true)
+
+    val statuses = listOf(
+        DatabaseHelper.SURGICAL_NOT_PLANNED,
+        DatabaseHelper.SURGICAL_PREPARATION,
+        DatabaseHelper.SURGICAL_READY,
+        DatabaseHelper.SURGICAL_COMPLETED
+    )
+
+    val statusSpinner = Spinner(this)
+    statusSpinner.adapter = ArrayAdapter(
+        this,
+        android.R.layout.simple_spinner_dropdown_item,
+        statuses
+    )
+    root.addView(statusSpinner)
+
+    addButton("حفظ ملف المريض") {
+        val patientName = name.text.toString().trim()
+
+        if (patientName.isEmpty()) {
+            name.error = "يرجى إدخال اسم المريض"
+            return@addButton
         }
-        addButton("رجوع") { showDashboard() }
-        setContentView(root)
+
+        val id = db.insertPatient(
+            patientName,
+            fileNumber.text.toString().trim(),
+            age.text.toString().trim(),
+            gender.text.toString().trim(),
+            phone.text.toString().trim(),
+            address.text.toString().trim(),
+            diagnosis.text.toString().trim(),
+            notes.text.toString().trim(),
+            specialist.text.toString().trim(),
+            admissionType.text.toString().trim(),
+            referralSource.text.toString().trim(),
+            injuryMechanism.text.toString().trim(),
+            outpatientDiagnosis.text.toString().trim(),
+            differentialDiagnoses.text.toString().trim()
+        )
+
+        if (id == -1L) {
+            showMessage("تعذر حفظ بيانات المريض")
+            return@addButton
+        }
+
+        val status = statusSpinner.selectedItem.toString()
+        if (status != DatabaseHelper.SURGICAL_NOT_PLANNED) {
+            db.savePatientSurgicalStatus(id.toInt(), status)
+        }
+
+        showMessage("تم تسجيل المريض بنجاح")
+        showPatientDetails(id.toInt(), patientName)
     }
+
+    addButton("إلغاء والعودة") {
+        showPatientList()
+    }
+
+    setContentView(root)
+}
 
     private fun showPatientDetails(patientId: Int, patientName: String) {
         createRoot()
