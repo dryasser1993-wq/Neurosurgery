@@ -578,6 +578,148 @@ private fun showPatientDetails(patientId: Int, patientName: String) {
 }
 
 
+private fun showEditPatient(patientId: Int) {
+    createRoot()
+    addHeader("تعديل بيانات المريض")
+
+    var nameValue = ""
+    var fileNumberValue = ""
+    var ageValue = ""
+    var genderValue = ""
+    var phoneValue = ""
+    var addressValue = ""
+    var diagnosisValue = ""
+    var notesValue = ""
+    var specialistValue = ""
+    var admissionTypeValue = ""
+    var referralSourceValue = ""
+    var injuryMechanismValue = ""
+    var outpatientDiagnosisValue = ""
+    var differentialDiagnosesValue = ""
+
+    val cursor = db.readableDatabase.rawQuery(
+        """SELECT full_name, file_number, age, gender, phone,
+                  address, diagnosis, notes, specialist,
+                  admission_type, referral_source, injury_mechanism,
+                  outpatient_diagnosis, differential_diagnoses
+           FROM patients WHERE id = ?""",
+        arrayOf(patientId.toString())
+    )
+
+    val found = cursor.use {
+        if (it.moveToFirst()) {
+            nameValue = it.getString(0) ?: ""
+            fileNumberValue = it.getString(1) ?: ""
+            ageValue = it.getString(2) ?: ""
+            genderValue = it.getString(3) ?: ""
+            phoneValue = it.getString(4) ?: ""
+            addressValue = it.getString(5) ?: ""
+            diagnosisValue = it.getString(6) ?: ""
+            notesValue = it.getString(7) ?: ""
+            specialistValue = it.getString(8) ?: ""
+            admissionTypeValue = it.getString(9) ?: ""
+            referralSourceValue = it.getString(10) ?: ""
+            injuryMechanismValue = it.getString(11) ?: ""
+            outpatientDiagnosisValue = it.getString(12) ?: ""
+            differentialDiagnosesValue = it.getString(13) ?: ""
+            true
+        } else {
+            false
+        }
+    }
+
+    if (!found) {
+        showMessage("لم يتم العثور على المريض")
+        showPatientList()
+        return
+    }
+
+    addText("المعلومات الشخصية", 18f, true)
+    val name = createInput("الاسم الكامل")
+    name.setText(nameValue)
+
+    val fileNumber = createInput("رقم الملف")
+    fileNumber.setText(fileNumberValue)
+
+    val age = createInput("العمر")
+    age.setText(ageValue)
+
+    val gender = createInput("الجنس")
+    gender.setText(genderValue)
+
+    val phone = createInput("رقم الهاتف")
+    phone.setText(phoneValue)
+
+    val address = createInput("العنوان")
+    address.setText(addressValue)
+
+    addText("معلومات المراجعة والدخول", 18f, true)
+    val admissionType = createInput("نوع المراجعة")
+    admissionType.setText(admissionTypeValue)
+
+    val referralSource = createInput("مصدر التحويل")
+    referralSource.setText(referralSourceValue)
+
+    val injuryMechanism = createInput("آلية الإصابة", true)
+    injuryMechanism.setText(injuryMechanismValue)
+
+    addText("التشخيص الطبي", 18f, true)
+    val diagnosis = createInput("التشخيص الرئيسي", true)
+    diagnosis.setText(diagnosisValue)
+
+    val outpatientDiagnosis = createInput("تشخيص العيادة الخارجية", true)
+    outpatientDiagnosis.setText(outpatientDiagnosisValue)
+
+    val differentialDiagnoses = createInput("التشخيصات التفريقية", true)
+    differentialDiagnoses.setText(differentialDiagnosesValue)
+
+    val specialist = createInput("الطبيب المختص")
+    specialist.setText(specialistValue)
+
+    val notes = createInput("ملاحظات إضافية", true)
+    notes.setText(notesValue)
+
+    addButton("حفظ التعديلات") {
+        val patientName = name.text.toString().trim()
+
+        if (patientName.isEmpty()) {
+            name.error = "أدخل اسم المريض"
+            return@addButton
+        }
+
+        val result = db.updatePatient(
+            patientId,
+            patientName,
+            fileNumber.text.toString(),
+            age.text.toString(),
+            gender.text.toString(),
+            phone.text.toString(),
+            address.text.toString(),
+            diagnosis.text.toString(),
+            notes.text.toString(),
+            specialist.text.toString(),
+            admissionType.text.toString(),
+            referralSource.text.toString(),
+            injuryMechanism.text.toString(),
+            outpatientDiagnosis.text.toString(),
+            differentialDiagnoses.text.toString()
+        )
+
+        if (result > 0) {
+            showMessage("تم تحديث بيانات المريض")
+            showPatientDetails(patientId, patientName)
+        } else {
+            showMessage("لم يتم حفظ التعديلات")
+        }
+    }
+
+    addButton("إلغاء والعودة") {
+        showPatientDetails(patientId, nameValue)
+    }
+
+    setContentView(root)
+}
+
     private fun showEditSurgicalStatus(patientId: Int, patientName: String) {
         createRoot()
         addHeader("تعديل الحالة الجراحية")
