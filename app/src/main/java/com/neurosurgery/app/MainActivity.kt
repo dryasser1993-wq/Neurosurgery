@@ -548,7 +548,9 @@ private fun showPatientDetails(patientId: Int, patientName: String) {
 
     addText("الحالة الجراحية الحالية", 18f, true)
     addText(db.getPatientSurgicalStatus(patientId), 16f, true)
-
+addButton("تعديل بيانات المريض") {
+    showEditPatient(patientId)
+}
     addButton("تعديل الحالة الجراحية") {
         showEditSurgicalStatus(patientId, patientName)
     }
