@@ -508,40 +508,75 @@ private fun showAddPatient() {
     setContentView(root)
 }
 
-    private fun showPatientDetails(patientId: Int, patientName: String) {
-        createRoot()
-        addHeader("ملف المريض")
-        addText(patientName, 21f, true)
-        addText("رقم المريض: $patientId")
-        val cursor = db.readableDatabase.rawQuery(
-            """SELECT file_number, age, gender, phone, address, diagnosis, notes, specialist
-               FROM patients WHERE id = ?""",
-            arrayOf(patientId.toString())
-        )
-        cursor.use {
-            if (it.moveToFirst()) {
-                addText("رقم الملف: ${it.getString(0) ?: ""}")
-                addText("العمر: ${it.getString(1) ?: ""}")
-                addText("الجنس: ${it.getString(2) ?: ""}")
-                addText("الهاتف: ${it.getString(3) ?: ""}")
-                addText("العنوان: ${it.getString(4) ?: ""}")
-                addText("التشخيص: ${it.getString(5) ?: ""}")
-                addText("الملاحظات: ${it.getString(6) ?: ""}")
-                addText("الطبيب المختص: ${it.getString(7) ?: ""}")
-            }
+private fun showPatientDetails(patientId: Int, patientName: String) {
+    createRoot()
+    addHeader("ملف المريض")
+    addText(patientName, 21f, true)
+    addText("رقم المريض: $patientId")
+
+    val cursor = db.readableDatabase.rawQuery(
+        """SELECT file_number, age, gender, phone, address,
+                  diagnosis, notes, specialist, admission_type,
+                  referral_source, injury_mechanism,
+                  outpatient_diagnosis, differential_diagnoses
+           FROM patients WHERE id = ?""",
+        arrayOf(patientId.toString())
+    )
+
+    cursor.use {
+        if (it.moveToFirst()) {
+            addText("المعلومات الشخصية", 18f, true)
+            addText("رقم الملف: ${it.getString(0) ?: ""}")
+            addText("العمر: ${it.getString(1) ?: ""}")
+            addText("الجنس: ${it.getString(2) ?: ""}")
+            addText("الهاتف: ${it.getString(3) ?: ""}")
+            addText("العنوان: ${it.getString(4) ?: ""}")
+
+            addText("معلومات المراجعة والدخول", 18f, true)
+            addText("نوع المراجعة: ${it.getString(8) ?: ""}")
+            addText("مصدر التحويل: ${it.getString(9) ?: ""}")
+            addText("آلية الإصابة: ${it.getString(10) ?: ""}")
+
+            addText("التشخيص الطبي", 18f, true)
+            addText("التشخيص الرئيسي: ${it.getString(5) ?: ""}")
+            addText("تشخيص العيادة الخارجية: ${it.getString(11) ?: ""}")
+            addText("التشخيصات التفريقية: ${it.getString(12) ?: ""}")
+            addText("الطبيب المختص: ${it.getString(7) ?: ""}")
+            addText("ملاحظات إضافية: ${it.getString(6) ?: ""}")
         }
-        addText("الحالة الجراحية الحالية", 18f, true)
-        addText(db.getPatientSurgicalStatus(patientId), 16f, true)
-        addButton("تعديل الحالة الجراحية") { showEditSurgicalStatus(patientId, patientName) }
-        addButton("تسجيل فحص عصبي") { showNeurologicalExam(patientId, patientName) }
-        addButton("عرض الفحوصات العصبية السابقة") { showNeurologicalExams(patientId, patientName) }
-        addButton("تسجيل تحليل أو استقصاء") { showAddInvestigation(patientId, patientName) }
-        addButton("عرض التحاليل والاستقصاءات") { showPatientInvestigations(patientId, patientName) }
-        addButton("تسجيل عملية جراحية") { showAddSurgery(patientId, patientName) }
-        addButton("عرض العمليات السابقة") { showPatientSurgeries(patientId, patientName) }
-        addButton("العودة لقائمة المرضى") { showPatientList() }
-        setContentView(root)
     }
+
+    addText("الحالة الجراحية الحالية", 18f, true)
+    addText(db.getPatientSurgicalStatus(patientId), 16f, true)
+
+    addButton("تعديل الحالة الجراحية") {
+        showEditSurgicalStatus(patientId, patientName)
+    }
+    addButton("تسجيل فحص عصبي") {
+        showNeurologicalExam(patientId, patientName)
+    }
+    addButton("عرض الفحوصات العصبية السابقة") {
+        showNeurologicalExams(patientId, patientName)
+    }
+    addButton("تسجيل تحليل أو استقصاء") {
+        showAddInvestigation(patientId, patientName)
+    }
+    addButton("عرض التحاليل والاستقصاءات") {
+        showPatientInvestigations(patientId, patientName)
+    }
+    addButton("تسجيل عملية جراحية") {
+        showAddSurgery(patientId, patientName)
+    }
+    addButton("عرض العمليات السابقة") {
+        showPatientSurgeries(patientId, patientName)
+    }
+    addButton("العودة لقائمة المرضى") {
+        showPatientList()
+    }
+
+    setContentView(root)
+}
+
 
     private fun showEditSurgicalStatus(patientId: Int, patientName: String) {
         createRoot()
