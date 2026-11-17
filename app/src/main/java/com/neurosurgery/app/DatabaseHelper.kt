@@ -445,6 +445,50 @@ class DatabaseHelper(context: Context) :
         return patientId
     }
 
+fun updatePatient(
+    id: Int,
+    name: String,
+    fileNumber: String,
+    age: String,
+    gender: String,
+    phone: String,
+    address: String,
+    diagnosis: String,
+    notes: String,
+    specialist: String,
+    admissionType: String,
+    referralSource: String,
+    injuryMechanism: String,
+    outpatientDiagnosis: String,
+    differentialDiagnoses: String
+): Int {
+    if (id <= 0 || name.isBlank()) return 0
+
+    val values = ContentValues().apply {
+        put("full_name", name.trim())
+        put("file_number", fileNumber.trim())
+        put("age", age.trim())
+        put("gender", gender.trim())
+        put("phone", phone.trim())
+        put("address", address.trim())
+        put("diagnosis", diagnosis.trim())
+        put("notes", notes.trim())
+        put("specialist", specialist.trim())
+        put("admission_type", admissionType.trim())
+        put("referral_source", referralSource.trim())
+        put("injury_mechanism", injuryMechanism.trim())
+        put("outpatient_diagnosis", outpatientDiagnosis.trim())
+        put("differential_diagnoses", differentialDiagnoses.trim())
+    }
+
+    return writableDatabase.update(
+        "patients",
+        values,
+        "id = ?",
+        arrayOf(id.toString())
+    )
+}
+
     private fun generateProtocolNumber(db: SQLiteDatabase): String {
         var next = 1L
         val cursor = db.rawQuery(
