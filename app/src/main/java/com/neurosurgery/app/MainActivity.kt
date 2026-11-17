@@ -943,28 +943,96 @@ class MainActivity : Activity() {
         setContentView(root)
     }
 
-    private fun showDoctors() {
-        createRoot()
-        addHeader("إدارة الأطباء")
-        val doctorName = createInput("اسم الطبيب")
-        addButton("إضافة طبيب") {
-            val name = doctorName.text.toString().trim()
-            if (name.isEmpty()) {
-                doctorName.error = "أدخل اسم الطبيب"
-                return@addButton
-            }
-            if (db.addDoctor(name) != -1L) {
-                showMessage("تمت إضافة الطبيب")
-                showDoctors()
-            } else showMessage("تعذرت إضافة الطبيب")
+    
+private fun showDoctors() {
+    createRoot()
+    addHeader("إدارة الكادر الطبي")
+
+    addText("إضافة عضو جديد", 18f, true)
+
+    val nameInput = createInput("الاسم الكامل")
+
+    val roles = arrayOf(
+        "استشاري / اختصاصي",
+        "طبيب مقيم",
+        "طبيب"
+    )
+
+    val roleSpinner = Spinner(this)
+    val adapter = ArrayAdapter(
+        this,
+        android.R.layout.simple_spinner_item,
+        roles
+    )
+    adapter.setDropDownViewResource(
+        android.R.layout.simple_spinner_dropdown_item
+    )
+    roleSpinner.adapter = adapter
+    root.addView(roleSpinner)
+
+    val specialtyInput = createInput("التخصص الدقيق")
+    val phoneInput = createInput("رقم الهاتف")
+    val notesInput = createInput("ملاحظات", true)
+
+    addButton("حفظ عضو الكادر") {
+        val name = nameInput.text.toString().trim()
+
+        if (name.isEmpty()) {
+            nameInput.error = "أدخل الاسم الكامل"
+            return@addButton
         }
-        addText("قائمة الأطباء", 18f, true)
-        val doctors = db.getDoctors()
-        if (doctors.isEmpty()) addText("لا يوجد أطباء مسجلون")
-        else doctors.forEachIndexed { index, doctor -> addText("${index + 1}. $doctor") }
-        addButton("العودة للرئيسية") { showDashboard() }
-        setContentView(root)
+
+        val role = when (roleSpinner.selectedItemPosition) {
+            0 -> DatabaseHelper.STAFF_SPECIALIST
+            1 -> DatabaseHelper.STAFF_RESIDENT
+            else -> DatabaseHelper.STAFF_DOCTOR
+        }
+
+        val result = db.addStaff(
+            name,
+            role,
+            specialtyInput.text.toString().trim(),
+            phoneInput.text.toString().trim(),
+            notesInput.text.toString().trim()
+        )
+
+        if (result != -1L) {
+            showMessage("تمت إضافة عضو الكادر بنجاح")
+            showDoctors()
+        } else {
+            showMessage("تعذرت إضافة عضو الكادر")
+        }
     }
+
+    addText("الاستشاريون والاختصاصيون", 18f, true)
+
+    val specialists = db.getSpecialists()
+    if (specialists.isEmpty()) {
+        addText("لا يوجد اختصاصيون مسجلون")
+    } else {
+        specialists.forEachIndexed { index, person ->
+            addText("${index + 1}. $person")
+        }
+    }
+
+    addText("الأطباء المقيمون", 18f, true)
+
+    val residents = db.getResidents()
+    if (residents.isEmpty()) {
+        addText("لا يوجد أطباء مقيمون مسجلون")
+    } else {
+        residents.forEachIndexed { index, person ->
+            addText("${index + 1}. $person")
+        }
+    }
+
+    addButton("العودة للرئيسية") {
+        showDashboard()
+    }
+
+    setContentView(root)
+}
+
 
     private fun showNeurologicalExams(patientId: Int, patientName: String) {
         createRoot()
