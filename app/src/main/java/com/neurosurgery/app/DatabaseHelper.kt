@@ -585,7 +585,31 @@ class DatabaseHelper(context: Context) :
         }
         return writableDatabase.insert("staff", null, values)
     }
+fun updateStaff(
+    id: Long,
+    name: String,
+    role: String,
+    specialty: String = "",
+    phone: String = "",
+    notes: String = ""
+): Int {
+    if (id <= 0 || name.isBlank()) return 0
 
+    val values = ContentValues().apply {
+        put("full_name", name.trim())
+        put("role", role)
+        put("specialty", specialty)
+        put("phone", phone)
+        put("notes", notes)
+    }
+
+    return writableDatabase.update(
+        "staff",
+        values,
+        "id = ?",
+        arrayOf(id.toString())
+    )
+}
     fun getSpecialists(): List<String> {
         val result = mutableListOf<String>()
         val cursor = readableDatabase.rawQuery(
