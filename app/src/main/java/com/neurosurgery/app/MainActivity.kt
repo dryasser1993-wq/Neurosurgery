@@ -1547,16 +1547,19 @@ private fun showNeurologicalExam(patientId: Int, patientName: String) {
     }
 
     val scrollView = ScrollView(this).apply {
+    
+val scrollView = ScrollView(this).apply {
     isFillViewport = true
     addView(
         root,
-        ScrollView.LayoutParams(
-            ScrollView.LayoutParams.MATCH_PARENT,
-            ScrollView.LayoutParams.WRAP_CONTENT
+        FrameLayout.LayoutParams(
+            LinearLayout.LayoutParams.MATCH_PARENT,
+            LinearLayout.LayoutParams.WRAP_CONTENT
         )
     )
 }
 setContentView(scrollView)
+
 }
  
 
