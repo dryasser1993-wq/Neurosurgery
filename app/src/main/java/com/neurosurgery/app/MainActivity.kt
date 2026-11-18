@@ -1217,48 +1217,98 @@ private fun showNeurologicalExam(patientId: Int, patientName: String) {
         "غير مفحوص"
     ))
 
-    // 4. الأعصاب القحفية
-    addText("4. الأعصاب القحفية I - XII", 19f, true)
-    val cranialNerves = createInput(
-        "تفاصيل فحص كل عصب قحفي على حدة", true
+    
+    // 4. الأعصاب القحفية I - XII
+    addText("4. فحص الأعصاب القحفية بالتفصيل", 19f, true)
+
+    val cranialNerveNames = listOf(
+        "I - العصب الشمي (Olfactory)",
+        "II - العصب البصري (Optic)",
+        "III - محرك العين (Oculomotor)",
+        "IV - البكري (Trochlear)",
+        "V - مثلث التوائم (Trigeminal)",
+        "VI - مبعد العين (Abducens)",
+        "VII - الوجهي (Facial)",
+        "VIII - الدهليزي القوقعي (Vestibulocochlear)",
+        "IX - اللساني البلعومي (Glossopharyngeal)",
+        "X - المبهم (Vagus)",
+        "XI - الإضافي (Accessory)",
+        "XII - تحت اللسان (Hypoglossal)"
     )
 
-    addMultiChoice("نتائج فحص الأعصاب القحفية", "cranial_status", listOf(
-        "طبيعي", "غير طبيعي", "ضعف حركي", "شلل",
-        "فقد إحساس", "اضطراب الشم", "اضطراب الرؤية",
-        "اضطراب حركة العين", "اضطراب حس الوجه",
-        "ضعف الوجه", "اضطراب السمع", "اضطراب البلع",
-        "اضطراب الصوت", "ضعف حركة اللسان", "غير مفحوص"
-    ))
+    val cranialStatuses = mutableMapOf<String, Spinner>()
+    val cranialDetails = mutableMapOf<String, EditText>()
 
-    // 5. الفحص الحركي
-    addText("5. القوة العضلية والفحص الحركي", 19f, true)
+    val cranialStatusOptions = listOf(
+        "غير مفحوص",
+        "طبيعي",
+        "غير طبيعي"
+    )
 
-    val rightUpper = createInput(
-        "الطرف العلوي الأيمن: الكتف والمرفق والرسغ والأصابع MRC 0-5",
-        true
+    for (nerve in cranialNerveNames) {
+        addText(nerve, 16f, true)
+        cranialStatuses[nerve] =
+            addSpinner("حالة العصب", cranialStatusOptions)
+        cranialDetails[nerve] =
+            createInput("تفاصيل الفحص والاضطرابات", true)
+    }
+
+    // 5. القوة العضلية والفحص الحركي
+    addText("5. القوة العضلية - مقياس MRC", 19f, true)
+
+    val mrcOptions = listOf(
+        "غير مفحوص",
+        "0 - لا يوجد تقلص عضلي",
+        "1 - تقلص دون حركة",
+        "2 - حركة مع إلغاء الجاذبية",
+        "3 - حركة ضد الجاذبية",
+        "4 - حركة ضد مقاومة",
+        "5 - قوة طبيعية"
     )
-    val leftUpper = createInput(
-        "الطرف العلوي الأيسر: الكتف والمرفق والرسغ والأصابع MRC 0-5",
-        true
+
+    val upperMuscles = listOf(
+        "تبعيد الكتف",
+        "ثني المرفق",
+        "بسط المرفق",
+        "بسط الرسغ",
+        "ثني الأصابع",
+        "تبعيد الأصابع"
     )
-    val rightLower = createInput(
-        "الطرف السفلي الأيمن: الورك والركبة والكاحل والأصابع MRC 0-5",
-        true
+
+    val lowerMuscles = listOf(
+        "ثني الورك",
+        "بسط الركبة",
+        "ثني الركبة",
+        "العطف الظهري للكاحل",
+        "العطف الأخمصي للكاحل",
+        "بسط إصبع القدم الكبير"
     )
-    val leftLower = createInput(
-        "الطرف السفلي الأيسر: الورك والركبة والكاحل والأصابع MRC 0-5",
-        true
-    )
+
+    val motorScores = mutableMapOf<String, Spinner>()
+
+    fun addMotorGroup(title: String, side: String, muscles: List<String>) {
+        addText(title, 17f, true)
+        for (muscle in muscles) {
+            motorScores["$side - $muscle"] =
+                addSpinner(muscle, mrcOptions)
+        }
+    }
+
+    addMotorGroup("الطرف العلوي الأيمن", "يمين علوي", upperMuscles)
+    addMotorGroup("الطرف العلوي الأيسر", "يسار علوي", upperMuscles)
+    addMotorGroup("الطرف السفلي الأيمن", "يمين سفلي", lowerMuscles)
+    addMotorGroup("الطرف السفلي الأيسر", "يسار سفلي", lowerMuscles)
 
     addMultiChoice("توتر العضلات", "tone", listOf(
         "طبيعي", "مرتفع", "منخفض",
         "تشنجي", "رخو", "غير مفحوص"
     ))
+
     addMultiChoice("الضمور والحركات اللاإرادية", "muscle_findings", listOf(
         "لا يوجد ضمور", "ضمور عضلي", "رعشة",
         "ارتعاشات حزمية", "حركات لا إرادية", "غير مفحوص"
     ))
+
 
     // 6. الفحص الحسي
     addText("6. الفحص الحسي", 19f, true)
@@ -1358,6 +1408,25 @@ private fun showNeurologicalExam(patientId: Int, patientName: String) {
         "Straight Leg Raising إيجابي يسار",
         "لم يُفحص"
     ))
+        val cranialSummary = cranialNerveNames.joinToString("\n") { nerve ->
+            val status = cranialStatuses[nerve]?.selectedItem?.toString() ?: "غير مفحوص"
+            val detail = cranialDetails[nerve]?.text?.toString()?.trim() ?: ""
+            "$nerve: $status\nالتفاصيل: $detail"
+        }
+
+        fun motorSummary(side: String): String {
+            return motorScores.entries
+                .filter { it.key.startsWith("$side - ") }
+                .joinToString("\n") {
+                    "${it.key}: ${it.value.selectedItem?.toString() ?: "غير مفحوص"}"
+                }
+        }
+
+        val rightUpperSummary = motorSummary("يمين علوي")
+        val leftUpperSummary = motorSummary("يسار علوي")
+        val rightLowerSummary = motorSummary("يمين سفلي")
+        val leftLowerSummary = motorSummary("يسار سفلي")
+
     val rootLevel = createInput("مستوى الجذر والجهة، مثال L5 يمين")
 
     addMultiChoice("إصابات الأعصاب الطرفية", "peripheral_nerves", listOf(
@@ -1433,16 +1502,25 @@ private fun showNeurologicalExam(patientId: Int, patientName: String) {
             appendLine("حالة اليسرى: ${selections["left_pupil_state"]?.joinToString("، ") ?: ""}")
             appendLine("التفاعل الحدقي: ${selections["pupil_reflex"]?.joinToString("، ") ?: ""}")
 
+            
             appendLine("\n=== الأعصاب القحفية ===")
-            appendLine("النتائج: ${selections["cranial_status"]?.joinToString("، ") ?: ""}")
+            appendLine(cranialSummary)
 
             appendLine("\n=== الفحص الحركي ===")
             appendLine("توتر العضلات: ${selections["tone"]?.joinToString("، ") ?: ""}")
+            
+            appendLine("القوة العضلية:")
+            appendLine(rightUpperSummary)
+            appendLine(leftUpperSummary)
+            appendLine(rightLowerSummary)
+            appendLine(leftLowerSummary)
+
             appendLine("الضمور والحركات: ${selections["muscle_findings"]?.joinToString("، ") ?: ""}")
 
             appendLine("\n=== الفحص الحسي ===")
             appendLine("أنواع الحس: ${selections["sensation_types"]?.joinToString("، ") ?: ""}")
             appendLine("النتائج: ${selections["sensation_results"]?.joinToString("، ") ?: ""}")
+
 
             appendLine("\n=== التناسق والمشية ===")
             appendLine("التناسق: ${selections["coordination"]?.joinToString("، ") ?: ""}")
@@ -1502,17 +1580,13 @@ private fun showNeurologicalExam(patientId: Int, patientName: String) {
                 leftReaction.selectedItem?.toString() ?: ""
             )
 
-            put(
-                "cranial_nerves",
-                cranialNerves.text.toString() +
-                    "\n" +
-                    (selections["cranial_status"]?.joinToString("، ") ?: "")
-            )
+            
+            put("cranial_nerves", cranialSummary)
 
-            put("right_upper_motor", rightUpper.text.toString())
-            put("left_upper_motor", leftUpper.text.toString())
-            put("right_lower_motor", rightLower.text.toString())
-            put("left_lower_motor", leftLower.text.toString())
+            put("right_upper_motor", rightUpperSummary)
+            put("left_upper_motor", leftUpperSummary)
+            put("right_lower_motor", rightLowerSummary)
+            put("left_lower_motor", leftLowerSummary)
 
             put("right_sensation", rightSensation.text.toString())
             put("left_sensation", leftSensation.text.toString())
