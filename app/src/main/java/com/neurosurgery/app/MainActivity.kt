@@ -1793,7 +1793,7 @@ private fun showNeurologicalExam(patientId: Int, patientName: String) {
         }
         try {
             val bitmap = android.graphics.BitmapFactory.decodeFile(path)
-٧                showMessage("تعذر قراءة الصورة")
+            if (bitmap == null) {
                 return
             }
             val imageView = ImageView(this).apply {
