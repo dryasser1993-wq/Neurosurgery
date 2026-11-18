@@ -828,7 +828,11 @@ addButton("تعديل بيانات المريض") {
         showPatientList()
     }
 
-    setContentView(root)
+        val scrollView = ScrollView(this).apply {
+        isFillViewport = true
+        addView(root)
+    }
+    setContentView(scrollView)
 }
 
 
