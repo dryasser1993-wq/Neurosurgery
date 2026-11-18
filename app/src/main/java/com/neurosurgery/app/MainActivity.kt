@@ -418,34 +418,217 @@ class MainActivity : Activity() {
     }
 
     
+
 private fun showAddPatient() {
     createRoot()
+    val screen = root
+
     addHeader("تسجيل مريض جديد")
 
-    addText("المعلومات الشخصية", 18f, true)
+    // منطقة النموذج القابلة للتمرير
+    val scroll = ScrollView(this)
+    val form = LinearLayout(this).apply {
+        orientation = LinearLayout.VERTICAL
+        setPadding(4, 8, 4, 16)
+    }
+    scroll.addView(form)
+
+    // نجعل حقول النموذج تضاف إلى form
+    root = form
+
+    fun addSection(title: String) {
+        addText(title, 18f, true)
+    }
+
+    fun addSpinner(label: String, options: List<String>): Spinner {
+        addText(label, 15f, true)
+        val spinner = Spinner(this)
+        spinner.adapter = ArrayAdapter(
+            this,
+            android.R.layout.simple_spinner_dropdown_item,
+            options
+        )
+        root.addView(spinner, LinearLayout.LayoutParams(-1, -2))
+        return spinner
+    }
+
+    fun addMultiChoice(
+        label: String,
+        options: List<String>
+    ): Pair<TextView, MutableList<String>> {
+        addText(label, 15f, true)
+
+        val selected = mutableListOf<String>()
+        val summary = TextView(this).apply {
+            text = "اضغط لاختيار عنصر أو أكثر"
+            textSize = 15f
+            setTextColor(blue)
+            setBackgroundColor(white)
+            setPadding(14, 16, 14, 16)
+            isClickable = true
+            setOnClickListener {
+                val checked = BooleanArray(options.size) {
+                    selected.contains(options[it])
+                }
+
+                AlertDialog.Builder(this@MainActivity)
+                    .setTitle(label)
+                    .setMultiChoiceItems(
+                        options.toTypedArray(),
+                        checked
+                    ) { _, which, isChecked ->
+                        val item = options[which]
+                        if (isChecked) {
+                            if (!selected.contains(item)) selected.add(item)
+                        } else {
+                            selected.remove(item)
+                        }
+                    }
+                    .setPositiveButton("تم") { _, _ ->
+                        text = if (selected.isEmpty()) {
+                            "لم يتم اختيار شيء"
+                        } else {
+                            selected.joinToString("، ")
+                        }
+                    }
+                    .setNegativeButton("إلغاء", null)
+                    .show()
+            }
+        }
+
+        root.addView(
+            summary,
+            LinearLayout.LayoutParams(-1, -2).apply {
+                setMargins(0, 4, 0, 8)
+            }
+        )
+
+        return Pair(summary, selected)
+    }
+
+    addSection("المعلومات الشخصية")
 
     val name = createInput("الاسم الكامل للمريض")
-    val fileNumber = createInput("رقم الملف (يُولد تلقائيًا إذا تركته فارغًا)")
+    val fileNumber = createInput("رقم الملف (اتركه فارغًا للتوليد التلقائي)")
     val age = createInput("العمر")
-    val gender = createInput("الجنس")
+    val gender = addSpinner(
+        "الجنس",
+        listOf("ذكر", "أنثى")
+    )
     val phone = createInput("رقم الهاتف")
-    val address = createInput("العنوان")
+    val address = createInput("العنوان", true)
 
-    addText("معلومات المراجعة والدخول", 18f, true)
+    addSection("معلومات المراجعة والدخول")
 
-    val admissionType = createInput("نوع المراجعة: إسعاف / عيادة / محول")
-    val referralSource = createInput("مصدر التحويل")
-    val injuryMechanism = createInput("آلية الإصابة إن وجدت", true)
+    val admissionType = addSpinner(
+        "نوع المراجعة",
+        listOf(
+            "إسعاف",
+            "عيادة خارجية",
+            "استشارة داخل المشفى",
+            "دخول مبرمج",
+            "محول من طبيب خارجي"
+        )
+    )
 
-    addText("التشخيص الطبي", 18f, true)
+    val referralOptions = listOf(
+        "الإسعاف",
+        "العيادة الخارجية",
+        "طبيب خارجي",
+        "قسم آخر داخل المشفى",
+        "مشفى آخر",
+        "أخرى"
+    )
+    val referral = addMultiChoice("مصدر التحويل", referralOptions)
+    val referralOther = createInput("تفاصيل مصدر التحويل الآخر")
+    val referringDoctor = createInput("اسم الطبيب المحوِّل")
 
-    val diagnosis = createInput("التشخيص الرئيسي", true)
-    val outpatientDiagnosis = createInput("تشخيص العيادة الخارجية", true)
-    val differentialDiagnoses = createInput("التشخيصات التفريقية", true)
-    val specialist = createInput("الطبيب المختص")
-    val notes = createInput("ملاحظات إضافية", true)
+    addSection("آلية الإصابة")
 
-    addText("الحالة الجراحية", 17f, true)
+    val injuryOptions = listOf(
+        "حادث سير",
+        "سقوط من ارتفاع",
+        "سقوط على الأرض",
+        "إصابة نافذة",
+        "إصابة رياضية",
+        "اعتداء",
+        "إصابة عمل",
+        "إصابة ولادية",
+        "لا توجد إصابة",
+        "أخرى"
+    )
+    val injury = addMultiChoice("اختر آلية الإصابة (يمكن اختيار أكثر من خيار)", injuryOptions)
+    val injuryOther = createInput("تفاصيل آلية الإصابة الأخرى")
+    val injuryNotes = createInput("ملاحظات وتفاصيل آلية الإصابة", true)
+
+    addSection("التشخيص الرئيسي")
+
+    val diagnosisOptions = listOf(
+        "ورم دماغي",
+        "ورم نخاعي",
+        "نزف داخل القحف",
+        "نزف تحت العنكبوتية",
+        "أم دم دماغية",
+        "تشوه شرياني وريدي",
+        "استسقاء دماغي",
+        "رضوض دماغية",
+        "كسر في الجمجمة",
+        "انضغاط النخاع الشوكي",
+        "انزلاق غضروفي",
+        "تضيق القناة الشوكية",
+        "كسر فقري",
+        "إصابة أعصاب طرفية",
+        "صرع",
+        "اضطراب حركي",
+        "تشوه خلقي",
+        "أخرى"
+    )
+    val diagnosis = addMultiChoice(
+        "اختر التشخيص الرئيسي (يمكن اختيار أكثر من خيار)",
+        diagnosisOptions
+    )
+    val diagnosisOther = createInput("تشخيص رئيسي آخر")
+    val diagnosisNotes = createInput("ملاحظات التشخيص الرئيسي", true)
+
+    addSection("تشخيص العيادة الخارجية")
+
+    val outpatient = addMultiChoice(
+        "اختر تشخيص العيادة الخارجية",
+        diagnosisOptions
+    )
+    val outpatientOther = createInput("تشخيص عيادة آخر")
+    val outpatientNotes = createInput("ملاحظات تشخيص العيادة الخارجية", true)
+
+    addSection("التشخيصات التفريقية")
+
+    val differential = addMultiChoice(
+        "اختر التشخيصات التفريقية",
+        diagnosisOptions
+    )
+    val differentialOther = createInput("تشخيص تفريقي آخر")
+    val differentialNotes = createInput("ملاحظات التشخيصات التفريقية", true)
+
+    addSection("الكادر الطبي")
+
+    val specialists = db.getSpecialists()
+    val residents = db.getResidents()
+
+    val examiningDoctor = addSpinner(
+        "الطبيب الفاحص",
+        listOf("غير محدد") + specialists
+    )
+
+    val specialist = addSpinner(
+        "الطبيب المختص",
+        listOf("غير محدد") + specialists
+    )
+
+    val resident = addSpinner(
+        "الطبيب المقيم",
+        listOf("غير محدد") + residents
+    )
+
+    addSection("الحالة الجراحية")
 
     val statuses = listOf(
         DatabaseHelper.SURGICAL_NOT_PLANNED,
@@ -453,60 +636,129 @@ private fun showAddPatient() {
         DatabaseHelper.SURGICAL_READY,
         DatabaseHelper.SURGICAL_COMPLETED
     )
+    val statusSpinner = addSpinner("الحالة الجراحية", statuses)
 
-    val statusSpinner = Spinner(this)
-    statusSpinner.adapter = ArrayAdapter(
-        this,
-        android.R.layout.simple_spinner_dropdown_item,
-        statuses
+    addSection("ملاحظات عامة")
+    val generalNotes = createInput("اكتب الملاحظات العامة هنا", true)
+
+    // أزرار ثابتة أسفل الشاشة
+    screen.addView(
+        scroll,
+        LinearLayout.LayoutParams(-1, 0, 1f)
     )
-    root.addView(statusSpinner)
 
-    addButton("حفظ ملف المريض") {
+    val buttons = LinearLayout(this).apply {
+        orientation = LinearLayout.VERTICAL
+        setPadding(4, 6, 4, 4)
+        setBackgroundColor(white)
+    }
+
+    fun fixedButton(title: String, action: () -> Unit) {
+        val button = Button(this).apply {
+            text = title
+            isAllCaps = false
+            setTextColor(white)
+            setBackgroundColor(blue)
+            setOnClickListener { action() }
+        }
+        buttons.addView(
+            button,
+            LinearLayout.LayoutParams(-1, -2).apply {
+                setMargins(0, 3, 0, 3)
+            }
+        )
+    }
+
+    fun selectedText(items: List<String>, other: String): String {
+        val result = items.toMutableList()
+        if (other.isNotBlank()) result.add("أخرى: $other")
+        return result.joinToString("، ")
+    }
+
+    fixedButton("حفظ ملف المريض") {
         val patientName = name.text.toString().trim()
 
         if (patientName.isEmpty()) {
             name.error = "يرجى إدخال اسم المريض"
-            return@addButton
+            name.requestFocus()
+            return@fixedButton
+        }
+
+        val notes = buildString {
+            append("الطبيب الفاحص: ${examiningDoctor.selectedItem}\n")
+            append("الطبيب المقيم: ${resident.selectedItem}\n")
+            append("الطبيب المحوِّل: ${referringDoctor.text}\n")
+            append("ملاحظات آلية الإصابة: ${injuryNotes.text}\n")
+            append("ملاحظات التشخيص الرئيسي: ${diagnosisNotes.text}\n")
+            append("ملاحظات تشخيص العيادة: ${outpatientNotes.text}\n")
+            append("ملاحظات التشخيصات التفريقية: ${differentialNotes.text}\n")
+            append("ملاحظات عامة: ${generalNotes.text}")
         }
 
         val id = db.insertPatient(
             patientName,
             fileNumber.text.toString().trim(),
             age.text.toString().trim(),
-            gender.text.toString().trim(),
+            gender.selectedItem.toString(),
             phone.text.toString().trim(),
             address.text.toString().trim(),
-            diagnosis.text.toString().trim(),
-            notes.text.toString().trim(),
-            specialist.text.toString().trim(),
-            admissionType.text.toString().trim(),
-            referralSource.text.toString().trim(),
-            injuryMechanism.text.toString().trim(),
-            outpatientDiagnosis.text.toString().trim(),
-            differentialDiagnoses.text.toString().trim()
+            selectedText(
+                diagnosis.second,
+                diagnosisOther.text.toString().trim()
+            ),
+            notes,
+            if (specialist.selectedItem.toString() == "غير محدد") ""
+            else specialist.selectedItem.toString(),
+            admissionType.selectedItem.toString(),
+            selectedText(
+                referral.second,
+                referralOther.text.toString().trim()
+            ) + if (referringDoctor.text.toString().isNotBlank()) {
+                " | الطبيب المحوِّل: ${referringDoctor.text}"
+            } else "",
+            selectedText(
+                injury.second,
+                injuryOther.text.toString().trim()
+            ) + if (injuryNotes.text.toString().isNotBlank()) {
+                " | ${injuryNotes.text}"
+            } else "",
+            selectedText(
+                outpatient.second,
+                outpatientOther.text.toString().trim()
+            ),
+            selectedText(
+                differential.second,
+                differentialOther.text.toString().trim()
+            )
         )
 
         if (id == -1L) {
             showMessage("تعذر حفظ بيانات المريض")
-            return@addButton
+            return@fixedButton
         }
 
-        val status = statusSpinner.selectedItem.toString()
-        if (status != DatabaseHelper.SURGICAL_NOT_PLANNED) {
-            db.savePatientSurgicalStatus(id.toInt(), status)
-        }
+        db.savePatientSurgicalStatus(
+            id.toInt(),
+            statusSpinner.selectedItem.toString()
+        )
 
         showMessage("تم تسجيل المريض بنجاح")
         showPatientDetails(id.toInt(), patientName)
     }
 
-    addButton("إلغاء والعودة") {
+    fixedButton("إلغاء والعودة") {
         showPatientList()
     }
 
-    setContentView(root)
+    screen.addView(
+        buttons,
+        LinearLayout.LayoutParams(-1, -2)
+    )
+
+    root = screen
+    setContentView(screen)
 }
+
 
 private fun showPatientDetails(patientId: Int, patientName: String) {
     createRoot()
