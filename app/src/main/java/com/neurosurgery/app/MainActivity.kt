@@ -1793,8 +1793,7 @@ private fun showNeurologicalExam(patientId: Int, patientName: String) {
         }
         try {
             val bitmap = android.graphics.BitmapFactory.decodeFile(path)
-            if (bitmap == null) {
-                showMessage("تعذر قراءة الصورة")
+٧                showMessage("تعذر قراءة الصورة")
                 return
             }
             val imageView = ImageView(this).apply {
@@ -2121,7 +2120,19 @@ private fun showDoctors() {
         if (count == 0) addText("لا توجد فحوصات عصبية سابقة")
         addButton("إجراء فحص عصبي جديد") { showNeurologicalExam(patientId, patientName) }
         addButton("العودة إلى ملف المريض") { showPatientDetails(patientId, patientName) }
-        setContentView(root)
+        
+        val scrollView = ScrollView(this).apply {
+            isFillViewport = true
+            addView(
+                root,
+                FrameLayout.LayoutParams(
+                    LinearLayout.LayoutParams.MATCH_PARENT,
+                    LinearLayout.LayoutParams.WRAP_CONTENT
+                )
+            )
+        }
+        setContentView(scrollView)
+
     }
 
     private fun showSurgerySearch() {
