@@ -1010,72 +1010,545 @@ private fun showEditPatient(patientId: Int) {
         AlertDialog.Builder(this).setMessage(message).setPositiveButton("حسناً", null).show()
     }
 
-    private fun showNeurologicalExam(patientId: Int, patientName: String) {
-        createRoot()
-        addHeader("الفحص العصبي التفصيلي")
-        addText("المريض: $patientName", 18f, true)
-        val examDate = createInput("تاريخ الفحص").apply { setText(currentDate()) }
-        addText("مستوى الوعي و GCS", 18f, true)
-        val consciousness = createInput("الوعي، GCS، E1 V1 M1 والمجموع", true)
-        addText("الأعصاب القحفية", 18f, true)
-        val cranialNerves = createInput("I - XII، الحدقات، حركات العين، الوجه والبلع...", true)
-        addText("القوة العضلية - الطرف العلوي الأيمن", 17f, true)
-        val rightUpper = createMotorInputs()
-        addText("القوة العضلية - الطرف العلوي الأيسر", 17f, true)
-        val leftUpper = createMotorInputs()
-        addText("القوة العضلية - الطرف السفلي الأيمن", 17f, true)
-        val rightLower = createMotorInputs()
-        addText("القوة العضلية - الطرف السفلي الأيسر", 17f, true)
-        val leftLower = createMotorInputs()
-        addText("الفحص الحسي", 18f, true)
-        val rightSensation = createInput("الحس في الطرف الأيمن", true)
-        val leftSensation = createInput("الحس في الطرف الأيسر", true)
-        addText("المنعكسات", 18f, true)
-        val rightReflexes = createInput("المنعكسات في الطرف الأيمن")
-        val leftReflexes = createInput("المنعكسات في الطرف الأيسر")
-        addText("علامة بابنسكي", 18f, true)
-        val rightBabinski = createInput("Babinski يمين")
-        val leftBabinski = createInput("Babinski يسار")
-        addText("التناسق الحركي", 18f, true)
-        val rightCoordination = createInput("التناسق الحركي يمين")
-        val leftCoordination = createInput("التناسق الحركي يسار")
-        addText("المشية", 18f, true)
-        val gait = createInput("وصف المشية", true)
-        addText("الانطباع السريري", 18f, true)
-        val impression = createInput("Clinical Impression", true)
-        val examiner = createInput("اسم الفاحص")
-        val notes = createInput("ملاحظات إضافية", true)
-        addButton("حفظ الفحص العصبي") {
-            val values = ContentValues().apply {
-                put("patient_id", patientId)
-                put("exam_date", examDate.text.toString())
-                put("consciousness", consciousness.text.toString())
-                put("cranial_nerves", cranialNerves.text.toString())
-                put("right_upper_motor", rightUpper.text.toString())
-                put("left_upper_motor", leftUpper.text.toString())
-                put("right_lower_motor", rightLower.text.toString())
-                put("left_lower_motor", leftLower.text.toString())
-                put("right_sensation", rightSensation.text.toString())
-                put("left_sensation", leftSensation.text.toString())
-                put("right_reflexes", rightReflexes.text.toString())
-                put("left_reflexes", leftReflexes.text.toString())
-                put("right_babinski", rightBabinski.text.toString())
-                put("left_babinski", leftBabinski.text.toString())
-                put("right_coordination", rightCoordination.text.toString())
-                put("left_coordination", leftCoordination.text.toString())
-                put("gait", gait.text.toString())
-                put("clinical_impression", impression.text.toString())
-                put("examiner_name", examiner.text.toString())
-                put("notes", notes.text.toString())
-            }
-            if (db.saveNeurologicalExam(values) != -1L) {
-                showMessage("تم حفظ الفحص العصبي بنجاح")
-                showPatientDetails(patientId, patientName)
-            } else showMessage("تعذر حفظ الفحص العصبي")
+  
+private fun showNeurologicalExam(patientId: Int, patientName: String) {
+    createRoot()
+    addHeader("الفحص العصبي الشامل")
+    addText("المريض: $patientName", 18f, true)
+
+    val selections = mutableMapOf<String, MutableList<String>>()
+
+    fun addMultiChoice(title: String, key: String, options: List<String>) {
+        addText(title, 16f, true)
+
+        val summary = TextView(this).apply {
+            text = "لم يتم الاختيار"
+            textSize = 14f
+            setTextColor(blue)
+            setPadding(12, 12, 12, 12)
         }
-        addButton("رجوع إلى ملف المريض") { showPatientDetails(patientId, patientName) }
-        setContentView(root)
+        root.addView(summary)
+
+        addButton("اختيار $title") {
+            val checked = BooleanArray(options.size) { index ->
+                selections[key]?.contains(options[index]) == true
+            }
+
+            AlertDialog.Builder(this)
+                .setTitle(title)
+                .setMultiChoiceItems(
+                    options.toTypedArray(),
+                    checked
+                ) { _, which, isChecked ->
+                    val chosen = selections.getOrPut(key) {
+                        mutableListOf()
+                    }
+                    if (isChecked) {
+                        if (!chosen.contains(options[which])) {
+                            chosen.add(options[which])
+                        }
+                    } else {
+                        chosen.remove(options[which])
+                    }
+                }
+                .setPositiveButton("اعتماد") { _, _ ->
+                    summary.text = selections[key]
+                        ?.takeIf { it.isNotEmpty() }
+                        ?.joinToString("، ")
+                        ?: "لم يتم الاختيار"
+                }
+                .setNegativeButton("إلغاء", null)
+                .show()
+        }
     }
+
+    fun addSpinner(title: String, options: List<String>): Spinner {
+        addText(title, 16f, true)
+        val spinner = Spinner(this)
+        val adapter = ArrayAdapter(
+            this,
+            android.R.layout.simple_spinner_item,
+            options
+        )
+        adapter.setDropDownViewResource(
+            android.R.layout.simple_spinner_dropdown_item
+        )
+        spinner.adapter = adapter
+        root.addView(spinner)
+        return spinner
+    }
+
+    fun score(spinner: Spinner): Int? {
+        return spinner.selectedItem?.toString()
+            ?.substringBefore(" -")
+            ?.trim()
+            ?.toIntOrNull()
+    }
+
+    val examDate = createInput("تاريخ الفحص").apply {
+        setText(currentDate())
+    }
+
+    // 1. التقييم الأولي
+    addText("1. الحالة العامة والتقييم الأولي", 19f, true)
+
+    addMultiChoice("الحالة العامة", "general", listOf(
+        "بحالة جيدة", "متعب", "شاحب", "متعرق",
+        "مضطرب", "نعسان", "فاقد الوعي",
+        "هائج", "متعاون", "غير متعاون", "متألم"
+    ))
+
+    val bloodPressure = createInput("ضغط الدم الانقباضي / الانبساطي")
+    val pulse = createInput("النبض / دقيقة")
+    val respiratoryRate = createInput("معدل التنفس / دقيقة")
+    val temperature = createInput("درجة الحرارة °C")
+    val oxygen = createInput("تشبع الأكسجين SpO2 %")
+    val glucose = createInput("سكر الدم")
+    val pain = createInput("درجة الألم من 0 إلى 10")
+
+    addMultiChoice("مجرى الهواء", "airway", listOf(
+        "مفتوح", "مهدد", "يحتاج إلى تدخل", "غير مفحوص"
+    ))
+    addMultiChoice("الاستقرار التنفسي", "respiratory", listOf(
+        "مستقر", "غير مستقر", "يحتاج أكسجين",
+        "يحتاج دعمًا تنفسيًا"
+    ))
+    addMultiChoice("الاستقرار الدوراني", "circulation", listOf(
+        "مستقر", "غير مستقر", "علامات صدمة",
+        "يحتاج دعمًا دورانيًا"
+    ))
+
+    // 2. مقياس غلاسكو
+    addText("2. مستوى الوعي ومقياس GCS", 19f, true)
+
+    val eye = addSpinner("فتح العين E", listOf(
+        "غير مفحوص", "4 - تلقائي", "3 - للصوت",
+        "2 - للألم", "1 - لا استجابة"
+    ))
+    val verbal = addSpinner("الاستجابة الكلامية V", listOf(
+        "غير مفحوص", "5 - متوجه", "4 - مشوش",
+        "3 - كلمات غير مناسبة",
+        "2 - أصوات غير مفهومة",
+        "1 - لا استجابة"
+    ))
+    val motor = addSpinner("الاستجابة الحركية M", listOf(
+        "غير مفحوص", "6 - ينفذ الأوامر",
+        "5 - يحدد الألم", "4 - ينسحب من الألم",
+        "3 - انثناء غير طبيعي",
+        "2 - بسط غير طبيعي",
+        "1 - لا استجابة"
+    ))
+
+    val gcsSummary = TextView(this).apply {
+        text = "GCS: لم يكتمل التقييم"
+        textSize = 17f
+        setTextColor(blue)
+        setPadding(12, 12, 12, 12)
+    }
+    root.addView(gcsSummary)
+
+    val updateGcs = {
+        val e = score(eye)
+        val v = score(verbal)
+        val m = score(motor)
+
+        gcsSummary.text =
+            if (e != null && v != null && m != null) {
+                "GCS = ${e + v + m} / 15"
+            } else {
+                "GCS: لم يكتمل التقييم"
+            }
+    }
+
+    val gcsListener =
+        object : android.widget.AdapterView.OnItemSelectedListener {
+            override fun onNothingSelected(
+                parent: android.widget.AdapterView<*>?
+            ) {}
+
+            override fun onItemSelected(
+                parent: android.widget.AdapterView<*>?,
+                view: View?,
+                position: Int,
+                id: Long
+            ) {
+                updateGcs()
+            }
+        }
+
+    eye.onItemSelectedListener = gcsListener
+    verbal.onItemSelectedListener = gcsListener
+    motor.onItemSelectedListener = gcsListener
+
+    // 3. الحدقتان
+    addText("3. فحص الحدقتين", 19f, true)
+
+    val pupilSizes = listOf(
+        "غير مفحوص", "1 mm", "2 mm", "3 mm",
+        "4 mm", "5 mm", "6 mm", "7 mm", "8 mm"
+    )
+    val rightPupil = addSpinner("حجم الحدقة اليمنى", pupilSizes)
+    val leftPupil = addSpinner("حجم الحدقة اليسرى", pupilSizes)
+
+    addMultiChoice("حالة الحدقة اليمنى", "right_pupil_state", listOf(
+        "طبيعية", "متوسعة", "متقبضة", "غير منتظمة"
+    ))
+    addMultiChoice("حالة الحدقة اليسرى", "left_pupil_state", listOf(
+        "طبيعية", "متوسعة", "متقبضة", "غير منتظمة"
+    ))
+
+    val rightReaction = addSpinner("تفاعل اليمنى مع الضوء", listOf(
+        "غير مفحوص", "سريع", "بطيء", "غائب", "ثابت"
+    ))
+    val leftReaction = addSpinner("تفاعل اليسرى مع الضوء", listOf(
+        "غير مفحوص", "سريع", "بطيء", "غائب", "ثابت"
+    ))
+
+    addMultiChoice("التفاعل الحدقي", "pupil_reflex", listOf(
+        "التفاعل المباشر موجود",
+        "التفاعل المباشر غائب",
+        "التفاعل التوافقي موجود",
+        "التفاعل التوافقي غائب",
+        "تفاوت حجم الحدقتين",
+        "غير مفحوص"
+    ))
+
+    // 4. الأعصاب القحفية
+    addText("4. الأعصاب القحفية I - XII", 19f, true)
+    val cranialNerves = createInput(
+        "تفاصيل فحص كل عصب قحفي على حدة", true
+    )
+
+    addMultiChoice("نتائج فحص الأعصاب القحفية", "cranial_status", listOf(
+        "طبيعي", "غير طبيعي", "ضعف حركي", "شلل",
+        "فقد إحساس", "اضطراب الشم", "اضطراب الرؤية",
+        "اضطراب حركة العين", "اضطراب حس الوجه",
+        "ضعف الوجه", "اضطراب السمع", "اضطراب البلع",
+        "اضطراب الصوت", "ضعف حركة اللسان", "غير مفحوص"
+    ))
+
+    // 5. الفحص الحركي
+    addText("5. القوة العضلية والفحص الحركي", 19f, true)
+
+    val rightUpper = createInput(
+        "الطرف العلوي الأيمن: الكتف والمرفق والرسغ والأصابع MRC 0-5",
+        true
+    )
+    val leftUpper = createInput(
+        "الطرف العلوي الأيسر: الكتف والمرفق والرسغ والأصابع MRC 0-5",
+        true
+    )
+    val rightLower = createInput(
+        "الطرف السفلي الأيمن: الورك والركبة والكاحل والأصابع MRC 0-5",
+        true
+    )
+    val leftLower = createInput(
+        "الطرف السفلي الأيسر: الورك والركبة والكاحل والأصابع MRC 0-5",
+        true
+    )
+
+    addMultiChoice("توتر العضلات", "tone", listOf(
+        "طبيعي", "مرتفع", "منخفض",
+        "تشنجي", "رخو", "غير مفحوص"
+    ))
+    addMultiChoice("الضمور والحركات اللاإرادية", "muscle_findings", listOf(
+        "لا يوجد ضمور", "ضمور عضلي", "رعشة",
+        "ارتعاشات حزمية", "حركات لا إرادية", "غير مفحوص"
+    ))
+
+    // 6. الفحص الحسي
+    addText("6. الفحص الحسي", 19f, true)
+    val rightSensation = createInput("الفحص الحسي للطرف الأيمن", true)
+    val leftSensation = createInput("الفحص الحسي للطرف الأيسر", true)
+
+    addMultiChoice("أنواع الحس المفحوصة", "sensation_types", listOf(
+        "اللمس الخفيف", "الألم", "الحرارة",
+        "الاهتزاز", "وضعية المفصل", "المستوى الحسي"
+    ))
+    addMultiChoice("نتائج الفحص الحسي", "sensation_results", listOf(
+        "طبيعي", "نقص الحس", "فقد الحس",
+        "زيادة الحس", "تنميل", "مستوى حسي واضح", "غير مفحوص"
+    ))
+
+    // 7. المنعكسات
+    addText("7. المنعكسات العصبية", 19f, true)
+
+    val rightReflexes = createInput(
+        "المنعكسات اليمنى: Biceps, Triceps, Brachioradialis, Patellar, Achilles مع الدرجات 0-4+",
+        true
+    )
+    val leftReflexes = createInput(
+        "المنعكسات اليسرى: Biceps, Triceps, Brachioradialis, Patellar, Achilles مع الدرجات 0-4+",
+        true
+    )
+
+    val rightBabinski = addSpinner("استجابة أخمص القدم اليمنى", listOf(
+        "غير مفحوص", "سلبي", "بابنسكي إيجابي", "غير واضح"
+    ))
+    val leftBabinski = addSpinner("استجابة أخمص القدم اليسرى", listOf(
+        "غير مفحوص", "سلبي", "بابنسكي إيجابي", "غير واضح"
+    ))
+
+   
+    // 8. التناسق والتوازن والمشية
+    addText("8. التناسق والتوازن والمشية", 19f, true)
+
+    val rightCoordination = createInput("التناسق الحركي الأيمن", true)
+    val leftCoordination = createInput("التناسق الحركي الأيسر", true)
+
+    addMultiChoice("اختبارات التناسق", "coordination", listOf(
+        "Finger-to-nose طبيعي",
+        "Finger-to-nose غير طبيعي",
+        "Heel-to-shin طبيعي",
+        "Heel-to-shin غير طبيعي",
+        "Rapid alternating movements طبيعي",
+        "Dysdiadochokinesia",
+        "Romberg سلبي",
+        "Romberg إيجابي",
+        "غير مفحوص"
+    ))
+
+    addMultiChoice("نوع المشية", "gait_types", listOf(
+        "طبيعية", "ترنحية", "تشنجية",
+        "متبخترة", "Steppage gait",
+        "غير قادر على المشي", "غير مفحوص"
+    ))
+    val gait = createInput("تفاصيل المشية", true)
+
+    // 9. علامات السحايا
+    addText("9. علامات السحايا", 19f, true)
+
+    addMultiChoice("الفحص السحائي", "meningeal", listOf(
+        "تيبس الرقبة إيجابي",
+        "تيبس الرقبة سلبي",
+        "Kernig إيجابي",
+        "Kernig سلبي",
+        "Brudzinski إيجابي",
+        "Brudzinski سلبي",
+        "غير مفحوص"
+    ))
+
+    // 10. الفحوصات العصبية الإضافية
+    addText("10. الفحوصات العصبية الإضافية", 19f, true)
+
+    addMultiChoice("علامات ارتفاع الضغط داخل القحف", "raised_icp", listOf(
+        "صداع", "قيء", "قيء قذفي", "اضطراب الوعي",
+        "اضطراب الرؤية", "وذمة حليمة العصب البصري",
+        "شلل العصب السادس", "ارتفاع ضغط الدم",
+        "بطء القلب", "اضطراب التنفس", "لم يُفحص"
+    ))
+
+    addMultiChoice("علامات إصابة النخاع الشوكي", "spinal_cord", listOf(
+        "ضعف الأطراف الأربعة", "ضعف الطرفين السفليين",
+        "شلل رباعي", "شلل نصفي سفلي",
+        "فرط المنعكسات", "نقص المنعكسات",
+        "Clonus", "Spasticity", "Flaccidity",
+        "مستوى حسي", "لم يُفحص"
+    ))
+    val spinalLevel = createInput("مستوى الإصابة الشوكية، مثال C5 أو T10")
+
+    addMultiChoice("علامات إصابة الجذور العصبية", "radiculopathy", listOf(
+        "ألم جذري", "تنميل", "ضعف عضلي",
+        "نقص المنعكسات",
+        "Straight Leg Raising إيجابي يمين",
+        "Straight Leg Raising إيجابي يسار",
+        "لم يُفحص"
+    ))
+    val rootLevel = createInput("مستوى الجذر والجهة، مثال L5 يمين")
+
+    addMultiChoice("إصابات الأعصاب الطرفية", "peripheral_nerves", listOf(
+        "Median", "Ulnar", "Radial", "Femoral",
+        "Sciatic", "Common peroneal", "Tibial",
+        "إصابة عدة أعصاب", "إصابة حركية",
+        "إصابة حسية", "إصابة مختلطة", "لم يُفحص"
+    ))
+    val peripheralDetails = createInput(
+        "تفاصيل إصابة الأعصاب الطرفية والجهة", true
+    )
+
+    addMultiChoice("علامات العجز العصبي البؤري", "focal_deficit", listOf(
+        "Facial weakness", "Aphasia", "Dysarthria",
+        "Hemiparesis", "Hemiplegia", "Monoparesis",
+        "Monoplegia", "Ataxia", "Visual field defect",
+        "Neglect", "Seizure activity", "لم يُفحص"
+    ))
+
+    addMultiChoice("وظيفة المثانة والأمعاء والعجان", "sphincter", listOf(
+        "التحكم بالبول طبيعي", "احتباس بول", "سلس بول",
+        "التحكم بالبراز طبيعي", "سلس براز",
+        "إحساس Saddle طبيعي", "نقص إحساس Saddle",
+        "فقد إحساس Saddle", "Anal tone طبيعي",
+        "Anal tone منخفض", "Anal tone غائب", "لم يُفحص"
+    ))
+
+    addMultiChoice("تصنيف ASIA عند الحاجة", "asia", listOf(
+        "ASIA A - Complete",
+        "ASIA B - Sensory incomplete",
+        "ASIA C - Motor incomplete",
+        "ASIA D - Motor incomplete",
+        "ASIA E - Normal",
+        "لم يتم إجراء تقييم ASIA كامل"
+    ))
+
+    // 11. الانطباع السريري والتوثيق
+    addText("11. الانطباع السريري والتوثيق", 19f, true)
+
+    val impression = createInput("الانطباع السريري", true)
+    val examiner = createInput("اسم الطبيب الفاحص")
+    val notes = createInput("ملاحظات إضافية", true)
+
+    // 12. حفظ الفحص
+    addButton("حفظ الفحص العصبي") {
+
+        val e = score(eye)
+        val v = score(verbal)
+        val m = score(motor)
+
+        val total = if (e != null && v != null && m != null) {
+            e + v + m
+        } else {
+            null
+        }
+
+        val structuredNotes = buildString {
+            appendLine("=== التقييم الأولي ===")
+            appendLine("الحالة العامة: ${selections["general"]?.joinToString("، ") ?: ""}")
+            appendLine("ضغط الدم: ${bloodPressure.text}")
+            appendLine("النبض: ${pulse.text}")
+            appendLine("معدل التنفس: ${respiratoryRate.text}")
+            appendLine("درجة الحرارة: ${temperature.text}")
+            appendLine("SpO2: ${oxygen.text}")
+            appendLine("سكر الدم: ${glucose.text}")
+            appendLine("الألم: ${pain.text}")
+            appendLine("مجرى الهواء: ${selections["airway"]?.joinToString("، ") ?: ""}")
+            appendLine("التنفس: ${selections["respiratory"]?.joinToString("، ") ?: ""}")
+            appendLine("الدوران: ${selections["circulation"]?.joinToString("، ") ?: ""}")
+
+            appendLine("\n=== الحدقتان ===")
+            appendLine("حالة اليمنى: ${selections["right_pupil_state"]?.joinToString("، ") ?: ""}")
+            appendLine("حالة اليسرى: ${selections["left_pupil_state"]?.joinToString("، ") ?: ""}")
+            appendLine("التفاعل الحدقي: ${selections["pupil_reflex"]?.joinToString("، ") ?: ""}")
+
+            appendLine("\n=== الأعصاب القحفية ===")
+            appendLine("النتائج: ${selections["cranial_status"]?.joinToString("، ") ?: ""}")
+
+            appendLine("\n=== الفحص الحركي ===")
+            appendLine("توتر العضلات: ${selections["tone"]?.joinToString("، ") ?: ""}")
+            appendLine("الضمور والحركات: ${selections["muscle_findings"]?.joinToString("، ") ?: ""}")
+
+            appendLine("\n=== الفحص الحسي ===")
+            appendLine("أنواع الحس: ${selections["sensation_types"]?.joinToString("، ") ?: ""}")
+            appendLine("النتائج: ${selections["sensation_results"]?.joinToString("، ") ?: ""}")
+
+            appendLine("\n=== التناسق والمشية ===")
+            appendLine("التناسق: ${selections["coordination"]?.joinToString("، ") ?: ""}")
+            appendLine("نوع المشية: ${selections["gait_types"]?.joinToString("، ") ?: ""}")
+
+            appendLine("\n=== علامات السحايا ===")
+            appendLine(selections["meningeal"]?.joinToString("، ") ?: "")
+
+            appendLine("\n=== الفحوصات الإضافية ===")
+            appendLine("ارتفاع الضغط داخل القحف: ${selections["raised_icp"]?.joinToString("، ") ?: ""}")
+            appendLine("إصابة النخاع: ${selections["spinal_cord"]?.joinToString("، ") ?: ""}")
+            appendLine("مستوى الإصابة الشوكية: ${spinalLevel.text}")
+            appendLine("إصابة الجذور: ${selections["radiculopathy"]?.joinToString("، ") ?: ""}")
+            appendLine("مستوى الجذر: ${rootLevel.text}")
+            appendLine("الأعصاب الطرفية: ${selections["peripheral_nerves"]?.joinToString("، ") ?: ""}")
+            appendLine("تفاصيل الأعصاب الطرفية: ${peripheralDetails.text}")
+            appendLine("العجز البؤري: ${selections["focal_deficit"]?.joinToString("، ") ?: ""}")
+            appendLine("وظيفة المصرة والعجان: ${selections["sphincter"]?.joinToString("، ") ?: ""}")
+            appendLine("ASIA: ${selections["asia"]?.joinToString("، ") ?: ""}")
+            appendLine("\n=== الملاحظات ===")
+            appendLine(notes.text)
+        }
+
+        val values = ContentValues().apply {
+            put("patient_id", patientId)
+            put("exam_date", examDate.text.toString())
+
+            put(
+                "consciousness",
+                "GCS: ${total ?: "غير مكتمل"} / 15"
+            )
+
+            put("gcs_eye", e?.toString())
+            put("gcs_verbal", v?.toString())
+            put("gcs_motor", m?.toString())
+
+            if (total != null) {
+                put("gcs_total", total)
+            } else {
+                putNull("gcs_total")
+            }
+
+            put(
+                "right_pupil_size",
+                rightPupil.selectedItem?.toString() ?: ""
+            )
+            put(
+                "left_pupil_size",
+                leftPupil.selectedItem?.toString() ?: ""
+            )
+            put(
+                "right_pupil_reaction",
+                rightReaction.selectedItem?.toString() ?: ""
+            )
+            put(
+                "left_pupil_reaction",
+                leftReaction.selectedItem?.toString() ?: ""
+            )
+
+            put(
+                "cranial_nerves",
+                cranialNerves.text.toString() +
+                    "\n" +
+                    (selections["cranial_status"]?.joinToString("، ") ?: "")
+            )
+
+            put("right_upper_motor", rightUpper.text.toString())
+            put("left_upper_motor", leftUpper.text.toString())
+            put("right_lower_motor", rightLower.text.toString())
+            put("left_lower_motor", leftLower.text.toString())
+
+            put("right_sensation", rightSensation.text.toString())
+            put("left_sensation", leftSensation.text.toString())
+
+            put("right_reflexes", rightReflexes.text.toString())
+            put("left_reflexes", leftReflexes.text.toString())
+
+            put(
+                "right_babinski",
+                rightBabinski.selectedItem?.toString() ?: ""
+            )
+            put(
+                "left_babinski",
+                leftBabinski.selectedItem?.toString() ?: ""
+            )
+
+            put("right_coordination", rightCoordination.text.toString())
+            put("left_coordination", leftCoordination.text.toString())
+
+            put("gait", gait.text.toString())
+            put("clinical_impression", impression.text.toString())
+            put("examiner_name", examiner.text.toString())
+            put("notes", structuredNotes)
+        }
+
+        if (db.saveNeurologicalExam(values) != -1L) {
+            showMessage("تم حفظ الفحص العصبي بنجاح")
+            showPatientDetails(patientId, patientName)
+        } else {
+            showMessage("تعذر حفظ الفحص العصبي")
+        }
+    }
+
+    addButton("رجوع إلى ملف المريض") {
+        showPatientDetails(patientId, patientName)
+    }
+
+    setContentView(root)
+}
+ 
 
     private fun createMotorInputs(): EditText = createInput(
         "القوة العضلية: الكتف، المرفق، الرسغ، الأصابع، الورك، الركبة، الكاحل، MRC 0-5", true
