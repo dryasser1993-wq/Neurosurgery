@@ -50,7 +50,6 @@ class MainActivity : Activity() {
         }
         return root
     }
-
     private fun addHeader(title: String) {
         val header = TextView(this).apply {
             text = title
