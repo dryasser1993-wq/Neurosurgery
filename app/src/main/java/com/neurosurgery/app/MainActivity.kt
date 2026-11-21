@@ -654,12 +654,8 @@ private fun showPatientDetails(patientId: Int, patientName: String) {
             addText("آلية الإصابة: ${it.getString(10) ?: ""}")
 
             addText("التشخيص الطبي", 18f, true)
-            addText("التشخيص الرئيسي: ${it.getString(5) ?: ""}")
-            addText("تشخيص العيادة الخارجية: ${it.getString(11) ?: ""}")
-            addText("التشخيصات التفريقية: ${it.getString(12) ?: ""}")
-            addText("الطبيب المختص: ${it.getString(7) ?: ""}")
-            addText("ملاحظات إضافية: ${it.getString(6) ?: ""}")
-        }
+addText("التشخيص: ${it.getString(5) ?: ""}")
+addText("الطبيب الفاحص: ${it.getString(7) ?: ""}")
     }
 
     addText("الحالة الجراحية الحالية", 18f, true)
